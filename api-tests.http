@@ -1,0 +1,172 @@
+### LazySpringSecurity - API Test Collection
+### Use com VS Code REST Client ou similar
+
+@baseUrl = http://localhost:8080
+@contentType = application/json
+
+### ================================================================
+### 📢 ENDPOINTS PÚBLICOS
+### ================================================================
+
+### Health Check
+GET {{baseUrl}}/auth/health
+
+### Registrar novo usuário
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+    "username": "newuser",
+    "email": "newuser@example.com",
+    "password": "minhasenha123"
+}
+
+### Login como usuário normal (john)
+# @name loginUser
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+    "username": "john",
+    "password": "123456"
+}
+
+### Login como admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+    "username": "admin",
+    "password": "admin123"
+}
+
+### Login como manager (jane)
+# @name loginManager
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+    "username": "jane",
+    "password": "123456"
+}
+
+### ================================================================
+### 🔐 ENDPOINTS AUTENTICADOS (requer Bearer token)
+### ================================================================
+
+@userToken = {{loginUser.response.body.access_token}}
+@adminToken = {{loginAdmin.response.body.access_token}}
+@managerToken = {{loginManager.response.body.access_token}}
+
+### Ver meu perfil (como usuário)
+GET {{baseUrl}}/api/profile
+Authorization: Bearer {{userToken}}
+
+### Ver /api/me (informações do usuário atual)
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{userToken}}
+
+### Atualizar perfil
+PUT {{baseUrl}}/api/profile
+Authorization: Bearer {{userToken}}
+Content-Type: {{contentType}}
+
+{
+    "displayName": "John Updated",
+    "email": "john.new@example.com"
+}
+
+### Listar meus pedidos
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{userToken}}
+
+### Criar novo pedido
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{userToken}}
+Content-Type: {{contentType}}
+
+{
+    "product": "Monitor 27 polegadas",
+    "quantity": 1,
+    "price": 1500.00
+}
+
+### ================================================================
+### 👑 ENDPOINTS ADMIN (requer role ADMIN)
+### ================================================================
+
+### Listar todos usuários (ADMIN)
+GET {{baseUrl}}/api/admin/users
+Authorization: Bearer {{adminToken}}
+
+### Dashboard administrativo (ADMIN)
+GET {{baseUrl}}/api/admin/dashboard
+Authorization: Bearer {{adminToken}}
+
+### Ver detalhes de um usuário (ADMIN)
+GET {{baseUrl}}/api/admin/users/user-1
+Authorization: Bearer {{adminToken}}
+
+### Adicionar role a um usuário (ADMIN)
+POST {{baseUrl}}/api/admin/users/user-1/roles
+Authorization: Bearer {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+    "role": "VIP"
+}
+
+### ================================================================
+### 🔒 ENDPOINTS COM @Owner (verifica propriedade)
+### ================================================================
+
+### Ver pedidos de outro usuário (user-1 tentando ver user-2)
+### Esperado: 403 Forbidden (não é dono nem admin)
+GET {{baseUrl}}/api/users/user-2/orders
+Authorization: Bearer {{userToken}}
+
+### Admin pode ver pedidos de qualquer usuário
+### Esperado: 200 OK (admin tem bypass)
+GET {{baseUrl}}/api/users/user-1/orders
+Authorization: Bearer {{adminToken}}
+
+### ================================================================
+### ❌ TESTES DE ERRO
+### ================================================================
+
+### Acesso sem token
+### Esperado: 401 Unauthorized
+GET {{baseUrl}}/api/profile
+
+### Usuário normal tentando acessar admin
+### Esperado: 403 Forbidden
+GET {{baseUrl}}/api/admin/users
+Authorization: Bearer {{userToken}}
+
+### Token inválido
+### Esperado: 401 Unauthorized
+GET {{baseUrl}}/api/profile
+Authorization: Bearer token_invalido_aqui
+
+### Login com credenciais erradas
+### Esperado: 401 Invalid Credentials
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+    "username": "john",
+    "password": "senha_errada"
+}
+
+### ================================================================
+### 🔄 REFRESH TOKEN
+### ================================================================
+
+### Refresh token (use o refresh_token do login)
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+    "refresh_token": "{{loginUser.response.body.refresh_token}}"
+}
