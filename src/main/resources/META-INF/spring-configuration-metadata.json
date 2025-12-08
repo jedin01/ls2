@@ -1,0 +1,107 @@
+{
+  "groups": [
+    {
+      "name": "lazy.security",
+      "type": "ao.sudojed.lss.core.LazySecurityProperties",
+      "description": "LazySpringSecurity configuration properties."
+    },
+    {
+      "name": "lazy.security.jwt",
+      "type": "ao.sudojed.lss.core.LazySecurityProperties$Jwt",
+      "description": "JWT configuration for LazySpringSecurity."
+    },
+    {
+      "name": "lazy.security.cors",
+      "type": "ao.sudojed.lss.core.LazySecurityProperties$Cors",
+      "description": "CORS configuration for LazySpringSecurity."
+    }
+  ],
+  "properties": [
+    {
+      "name": "lazy.security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "Secret key for JWT signing. Must be at least 256 bits (32 characters) for HS256."
+    },
+    {
+      "name": "lazy.security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "Access token expiration time in milliseconds.",
+      "defaultValue": 3600000
+    },
+    {
+      "name": "lazy.security.jwt.refresh-expiration",
+      "type": "java.lang.Long",
+      "description": "Refresh token expiration time in milliseconds.",
+      "defaultValue": 604800000
+    },
+    {
+      "name": "lazy.security.jwt.header",
+      "type": "java.lang.String",
+      "description": "HTTP header name for JWT token.",
+      "defaultValue": "Authorization"
+    },
+    {
+      "name": "lazy.security.jwt.prefix",
+      "type": "java.lang.String",
+      "description": "Token prefix in the Authorization header.",
+      "defaultValue": "Bearer "
+    },
+    {
+      "name": "lazy.security.jwt.issuer",
+      "type": "java.lang.String",
+      "description": "JWT issuer claim.",
+      "defaultValue": "lazy-spring-security"
+    },
+    {
+      "name": "lazy.security.public-paths",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of public paths that don't require authentication. Supports Ant patterns."
+    },
+    {
+      "name": "lazy.security.default-role",
+      "type": "java.lang.String",
+      "description": "Default role for authenticated users.",
+      "defaultValue": "USER"
+    },
+    {
+      "name": "lazy.security.csrf-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable CSRF protection.",
+      "defaultValue": false
+    },
+    {
+      "name": "lazy.security.cors.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable CORS support.",
+      "defaultValue": true
+    },
+    {
+      "name": "lazy.security.cors.origins",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Allowed CORS origins.",
+      "defaultValue": ["*"]
+    },
+    {
+      "name": "lazy.security.cors.methods",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Allowed CORS methods.",
+      "defaultValue": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    },
+    {
+      "name": "lazy.security.debug",
+      "type": "java.lang.Boolean",
+      "description": "Enable debug logging for LazySpringSecurity.",
+      "defaultValue": false
+    }
+  ],
+  "hints": [
+    {
+      "name": "lazy.security.jwt.algorithm",
+      "values": [
+        { "value": "HS256", "description": "HMAC with SHA-256 (default)" },
+        { "value": "HS384", "description": "HMAC with SHA-384" },
+        { "value": "HS512", "description": "HMAC with SHA-512" }
+      ]
+    }
+  ]
+}
