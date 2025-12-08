@@ -33,6 +33,7 @@ import ao.sudojed.lss.annotation.EnableLazySecurity;
 import ao.sudojed.lss.aspect.LazySecurityAspect;
 import ao.sudojed.lss.aspect.RateLimitAspect;
 import ao.sudojed.lss.core.LazySecurityProperties;
+import ao.sudojed.lss.exception.LazySecurityControllerAdvice;
 import ao.sudojed.lss.exception.LazySecurityExceptionHandler;
 import ao.sudojed.lss.filter.LazyJwtFilter;
 import ao.sudojed.lss.filter.RateLimitManager;
@@ -184,6 +185,11 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
     @Bean
     public LazySecurityExceptionHandler lazySecurityExceptionHandler() {
         return new LazySecurityExceptionHandler();
+    }
+
+    @Bean
+    public LazySecurityControllerAdvice lazySecurityControllerAdvice() {
+        return new LazySecurityControllerAdvice();
     }
 
     @Bean

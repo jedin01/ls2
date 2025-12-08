@@ -34,9 +34,16 @@ public class LazySecurityAspect {
     private static final Logger log = LoggerFactory.getLogger(LazySecurityAspect.class);
 
     /**
-     * Intercepta métodos anotados com @LazySecured.
+     * Intercepta métodos anotados com @LazySecured, @Admin, ou @Authenticated.
+     * Como @Admin e @Authenticated são meta-anotados com @LazySecured,
+     * precisamos interceptar explicitamente.
      */
-    @Before("@annotation(ao.sudojed.lss.annotation.LazySecured) || @within(ao.sudojed.lss.annotation.LazySecured)")
+    @Before("@annotation(ao.sudojed.lss.annotation.LazySecured) || " +
+            "@within(ao.sudojed.lss.annotation.LazySecured) || " +
+            "@annotation(ao.sudojed.lss.annotation.Admin) || " +
+            "@within(ao.sudojed.lss.annotation.Admin) || " +
+            "@annotation(ao.sudojed.lss.annotation.Authenticated) || " +
+            "@within(ao.sudojed.lss.annotation.Authenticated)")
     public void checkLazySecured(JoinPoint joinPoint) {
         LazySecured annotation = getAnnotation(joinPoint, LazySecured.class);
         
