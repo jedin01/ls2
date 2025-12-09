@@ -1,9 +1,9 @@
 package ao.sudojed.lss.demo.controller;
 
 import ao.sudojed.lss.annotation.LazySecured;
-import ao.sudojed.lss.annotation.Owner;
 import ao.sudojed.lss.annotation.RateLimit;
-import ao.sudojed.lss.core.LazyUser;
+import ao.sudojed.lss.facade.Auth;
+import ao.sudojed.lss.facade.Guard;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -11,12 +11,18 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Controller de pedidos.
+ * Controller de pedidos demonstrando Auth e Guard facades.
  * 
- * Demonstra o uso de:
- * - @Owner para verificação de propriedade do recurso
- * - @RateLimit para limitar requisições
- * - Combinação de anotações de segurança
+ * Demonstra:
+ * - Auth.id(), Auth.username() para obter dados do usuario
+ * - Guard.owner() para verificar propriedade de recursos
+ * - Guard.authenticated() para exigir login
+ * - @RateLimit para limitar requisicoes
+ * 
+ * Comparacao com Laravel:
+ * - Auth.id()        -> auth()->id()
+ * - Guard.owner(id)  -> $this->authorize('view', $resource)
+ * - Auth.isAdmin()   -> auth()->user()->isAdmin()
  */
 @RestController
 @RequestMapping("/api")
@@ -26,37 +32,37 @@ public class OrderController {
     private final Map<String, List<Map<String, Object>>> ordersByUser = new ConcurrentHashMap<>();
 
     public OrderController() {
-        // Dados de exemplo
         initializeSampleData();
     }
 
     private void initializeSampleData() {
-        ordersByUser.put("user-1", List.of(
+        ordersByUser.put("user-1", new ArrayList<>(List.of(
             Map.of("orderId", "ORD-001", "product", "Notebook", "total", 2500.00, "status", "DELIVERED"),
             Map.of("orderId", "ORD-002", "product", "Mouse", "total", 150.00, "status", "SHIPPED")
-        ));
-        ordersByUser.put("user-2", List.of(
+        )));
+        ordersByUser.put("user-2", new ArrayList<>(List.of(
             Map.of("orderId", "ORD-003", "product", "Teclado", "total", 300.00, "status", "PENDING")
-        ));
+        )));
     }
 
     /**
-     * Lista pedidos do usuário logado.
+     * Lista pedidos do usuario logado.
      * 
-     * @LazySecured - Requer autenticação
-     * @RateLimit - Limita a 10 requisições por minuto
-     * 
-     * Uso: GET /api/orders
+     * Usa Auth.id() e Auth.username() - sem parametro LazyUser!
      */
     @LazySecured
     @RateLimit(requests = 10, window = 60)
     @GetMapping("/orders")
-    public Map<String, Object> getMyOrders(LazyUser user) {
-        List<Map<String, Object>> orders = ordersByUser.getOrDefault(user.getId(), List.of());
+    public Map<String, Object> getMyOrders() {
+        // Usa Auth facade ao inves de parametro LazyUser
+        String userId = Auth.id();
+        String username = Auth.username();
+        
+        List<Map<String, Object>> orders = ordersByUser.getOrDefault(userId, List.of());
         
         return Map.of(
-            "userId", user.getId(),
-            "username", user.getUsername(),
+            "userId", userId,
+            "username", username,
             "totalOrders", orders.size(),
             "orders", orders
         );
@@ -65,18 +71,13 @@ public class OrderController {
     /**
      * Cria um novo pedido.
      * 
-     * @LazySecured - Requer autenticação
-     * @RateLimit - Limita a 5 pedidos por minuto (anti-spam)
-     * 
-     * Uso: POST /api/orders
-     * Body: { "product": "Headphone", "quantity": 1, "price": 200.00 }
+     * Demonstra Guard.authenticated() para verificacao imperativa.
      */
-    @LazySecured
     @RateLimit(requests = 5, window = 60)
     @PostMapping("/orders")
-    public Map<String, Object> createOrder(
-            LazyUser user,
-            @RequestBody Map<String, Object> orderData) {
+    public Map<String, Object> createOrder(@RequestBody Map<String, Object> orderData) {
+        // Verificacao imperativa de autenticacao
+        Guard.authenticated();
         
         String orderId = "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         
@@ -88,66 +89,70 @@ public class OrderController {
         newOrder.put("total", calculateTotal(orderData));
         newOrder.put("status", "PENDING");
         newOrder.put("createdAt", LocalDateTime.now().toString());
-        newOrder.put("userId", user.getId());
+        newOrder.put("userId", Auth.id());  // Auth facade!
 
         // Adiciona ao "banco"
-        ordersByUser.computeIfAbsent(user.getId(), k -> new ArrayList<>());
-        List<Map<String, Object>> userOrders = new ArrayList<>(ordersByUser.get(user.getId()));
+        ordersByUser.computeIfAbsent(Auth.id(), k -> new ArrayList<>());
+        List<Map<String, Object>> userOrders = new ArrayList<>(ordersByUser.get(Auth.id()));
         userOrders.add(newOrder);
-        ordersByUser.put(user.getId(), userOrders);
+        ordersByUser.put(Auth.id(), userOrders);
 
         return Map.of(
             "message", "Pedido criado com sucesso!",
-            "order", newOrder
+            "order", newOrder,
+            "createdBy", Auth.username()
         );
     }
 
     /**
-     * Obtém pedidos de um usuário específico.
+     * Obtem pedidos de um usuario especifico.
      * 
-     * @Owner - Verifica se o usuário está acessando seus próprios dados
-     *          Admins podem acessar dados de qualquer usuário (adminBypass = true)
+     * Demonstra Guard.owner() - verifica se usuario eh dono do recurso.
+     * Admin tem bypass automatico.
      * 
-     * Uso: GET /api/users/{userId}/orders
-     * 
-     * Se userId != usuário logado e não for admin → 403 Forbidden
+     * Equivalente Laravel: $this->authorize('view', $user);
      */
-    @LazySecured
-    @Owner(field = "userId", adminBypass = true)
     @GetMapping("/users/{userId}/orders")
     public Map<String, Object> getUserOrders(@PathVariable String userId) {
+        // Exige autenticacao primeiro
+        Guard.authenticated();
+        
+        // Verifica se eh o dono OU admin (admin tem bypass automatico)
+        Guard.owner(userId);
+        
         List<Map<String, Object>> orders = ordersByUser.getOrDefault(userId, List.of());
         
         return Map.of(
             "userId", userId,
             "totalOrders", orders.size(),
-            "orders", orders
+            "orders", orders,
+            "accessedBy", Auth.username(),
+            "isOwner", userId.equals(Auth.id()),
+            "isAdmin", Auth.isAdmin()
         );
     }
 
     /**
      * Cancela um pedido.
      * 
-     * Demonstra lógica de negócio com verificação de propriedade.
-     * 
-     * Uso: DELETE /api/orders/{orderId}
+     * Demonstra logica condicional com Auth.isAdmin().
      */
-    @LazySecured
     @DeleteMapping("/orders/{orderId}")
-    public Map<String, Object> cancelOrder(
-            LazyUser user,
-            @PathVariable String orderId) {
+    public Map<String, Object> cancelOrder(@PathVariable String orderId) {
+        Guard.authenticated();
         
-        // Busca o pedido
-        List<Map<String, Object>> userOrders = ordersByUser.getOrDefault(user.getId(), List.of());
+        String userId = Auth.id();
+        
+        // Busca o pedido do usuario atual
+        List<Map<String, Object>> userOrders = ordersByUser.getOrDefault(userId, new ArrayList<>());
         
         Optional<Map<String, Object>> orderOpt = userOrders.stream()
             .filter(o -> orderId.equals(o.get("orderId")))
             .findFirst();
 
         if (orderOpt.isEmpty()) {
-            // Se for admin, pode cancelar pedido de qualquer usuário
-            if (user.isAdmin()) {
+            // Se for admin, pode cancelar pedido de qualquer usuario
+            if (Auth.isAdmin()) {
                 for (var entry : ordersByUser.entrySet()) {
                     Optional<Map<String, Object>> found = entry.getValue().stream()
                         .filter(o -> orderId.equals(o.get("orderId")))
@@ -158,7 +163,8 @@ public class OrderController {
                         ordersByUser.put(entry.getKey(), updated);
                         return Map.of(
                             "message", "Pedido cancelado pelo admin",
-                            "orderId", orderId
+                            "orderId", orderId,
+                            "cancelledBy", Auth.username()
                         );
                     }
                 }
@@ -166,18 +172,46 @@ public class OrderController {
             
             return Map.of(
                 "error", "ORDER_NOT_FOUND",
-                "message", "Pedido não encontrado ou não pertence a você"
+                "message", "Pedido nao encontrado ou nao pertence a voce"
             );
         }
 
         // Remove o pedido
         List<Map<String, Object>> updated = new ArrayList<>(userOrders);
         updated.remove(orderOpt.get());
-        ordersByUser.put(user.getId(), updated);
+        ordersByUser.put(userId, updated);
 
         return Map.of(
             "message", "Pedido cancelado com sucesso",
-            "orderId", orderId
+            "orderId", orderId,
+            "cancelledBy", Auth.username()
+        );
+    }
+
+    /**
+     * Endpoint que requer ADMIN ou MANAGER para ver todos os pedidos.
+     * 
+     * Demonstra Guard.anyRole().
+     */
+    @GetMapping("/orders/all")
+    public Map<String, Object> getAllOrders() {
+        // Apenas ADMIN ou MANAGER podem ver todos os pedidos
+        Guard.anyRole("ADMIN", "MANAGER");
+        
+        List<Map<String, Object>> allOrders = new ArrayList<>();
+        for (var entry : ordersByUser.entrySet()) {
+            for (var order : entry.getValue()) {
+                Map<String, Object> orderWithOwner = new HashMap<>(order);
+                orderWithOwner.put("ownerId", entry.getKey());
+                allOrders.add(orderWithOwner);
+            }
+        }
+        
+        return Map.of(
+            "totalOrders", allOrders.size(),
+            "orders", allOrders,
+            "requestedBy", Auth.username(),
+            "userRole", Auth.user().getRoles()
         );
     }
 

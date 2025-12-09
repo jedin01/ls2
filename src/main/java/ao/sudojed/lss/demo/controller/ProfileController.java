@@ -5,18 +5,24 @@ import ao.sudojed.lss.annotation.LazySecured;
 import ao.sudojed.lss.core.LazyUser;
 import ao.sudojed.lss.demo.model.User;
 import ao.sudojed.lss.demo.service.UserService;
+import ao.sudojed.lss.facade.Auth;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 /**
- * Controller de perfil do usuário.
+ * Controller de perfil do usuario.
  * 
- * Demonstra o uso de:
- * - @Authenticated para endpoints que requerem apenas login
- * - @LazySecured para endpoints com requisitos específicos
- * - LazyUser como parâmetro para injeção automática do usuário
+ * Demonstra duas formas de acesso ao usuario:
+ * 
+ * 1. Via parametro LazyUser (injecao automatica):
+ *    public Map<String, Object> getProfile(LazyUser user) { ... }
+ * 
+ * 2. Via facade Auth (estilo Laravel):
+ *    Auth.user()     // obtem usuario
+ *    Auth.id()       // obtem ID
+ *    Auth.hasRole()  // verifica role
  */
 @RestController
 @RequestMapping("/api")
@@ -29,11 +35,9 @@ public class ProfileController {
     }
 
     /**
-     * Retorna o perfil do usuário logado.
+     * Retorna o perfil do usuario logado.
      * 
-     * @Authenticated - Qualquer usuário autenticado pode acessar
-     * 
-     * Note como LazyUser é injetado automaticamente como parâmetro!
+     * Exemplo usando parametro LazyUser (forma tradicional)
      * 
      * Uso: GET /api/profile
      * Header: Authorization: Bearer <token>
@@ -41,7 +45,6 @@ public class ProfileController {
     @Authenticated
     @GetMapping("/profile")
     public Map<String, Object> getProfile(LazyUser user) {
-        // LazyUser contém os dados do token JWT
         return Map.of(
             "id", user.getId(),
             "username", user.getUsername(),
@@ -53,22 +56,41 @@ public class ProfileController {
     }
 
     /**
-     * Atualiza o perfil do usuário.
+     * Retorna informacoes do usuario atual usando facade Auth.
      * 
-     * @LazySecured - Requer autenticação (equivalente a @Authenticated)
+     * Exemplo usando Auth facade (estilo Laravel):
+     * - Auth.user()    equivale a  Auth::user()
+     * - Auth.id()      equivale a  Auth::id()
+     * - Auth.isAdmin() equivale a  Auth::user()->isAdmin()
+     * 
+     * Uso: GET /api/me
+     * Header: Authorization: Bearer <token>
+     */
+    @Authenticated
+    @GetMapping("/me")
+    public Map<String, Object> me() {
+        // Usa facade Auth (estilo Laravel) - sem precisar de parametro!
+        return Map.of(
+            "id", Auth.id(),
+            "username", Auth.username(),
+            "email", Auth.claim("email"),
+            "roles", Auth.user().getRoles(),
+            "isAdmin", Auth.isAdmin(),
+            "isGuest", Auth.guest()
+        );
+    }
+
+    /**
+     * Atualiza o perfil do usuario.
      * 
      * Uso: PUT /api/profile
-     * Header: Authorization: Bearer <token>
      * Body: { "displayName": "John Doe", "email": "newemail@example.com" }
      */
     @LazySecured
     @PutMapping("/profile")
-    public ResponseEntity<Map<String, Object>> updateProfile(
-            LazyUser user,
-            @RequestBody Map<String, String> updates) {
-        
-        User dbUser = userService.findById(user.getId())
-            .orElse(null);
+    public ResponseEntity<Map<String, Object>> updateProfile(@RequestBody Map<String, String> updates) {
+        // Usa Auth.id() para obter ID do usuario atual
+        User dbUser = userService.findById(Auth.id()).orElse(null);
         
         if (dbUser == null) {
             return ResponseEntity.notFound().build();
@@ -93,23 +115,5 @@ public class ProfileController {
                 "email", dbUser.getEmail()
             )
         ));
-    }
-
-    /**
-     * Retorna informações do usuário atual.
-     * 
-     * Uso: GET /api/me
-     */
-    @LazySecured
-    @GetMapping("/me")
-    public Map<String, Object> me(LazyUser user) {
-        return Map.of(
-            "userId", user.getId(),
-            "username", user.getUsername(),
-            "roles", user.getRoles(),
-            "permissions", user.getPermissions(),
-            "authenticated", user.isAuthenticated(),
-            "admin", user.isAdmin()
-        );
     }
 }

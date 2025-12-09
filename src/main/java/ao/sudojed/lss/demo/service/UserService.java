@@ -1,7 +1,7 @@
 package ao.sudojed.lss.demo.service;
 
 import ao.sudojed.lss.demo.model.User;
-import ao.sudojed.lss.util.PasswordUtils;
+import ao.sudojed.lss.facade.Auth;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -51,14 +51,15 @@ public class UserService {
     }
 
     /**
-     * Cria um novo usuário.
+     * Cria um novo usuario.
+     * Usa Auth.hashPassword() para hashear a senha (equivalente ao Hash::make do Laravel).
      */
     public User createUser(String username, String email, String password) {
         String id = "user-" + UUID.randomUUID().toString().substring(0, 8);
-        String passwordHash = PasswordUtils.hash(password);
+        String passwordHash = Auth.hashPassword(password);
         
         User user = new User(id, username, email, passwordHash);
-        user.addRole("USER"); // Role padrão
+        user.addRole("USER"); // Role padrao
         
         usersById.put(id, user);
         usersByUsername.put(username, user);

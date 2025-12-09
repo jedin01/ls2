@@ -6,9 +6,9 @@ import ao.sudojed.lss.demo.dto.LoginRequest;
 import ao.sudojed.lss.demo.dto.RegisterRequest;
 import ao.sudojed.lss.demo.model.User;
 import ao.sudojed.lss.demo.service.UserService;
+import ao.sudojed.lss.facade.Auth;
 import ao.sudojed.lss.jwt.JwtService;
 import ao.sudojed.lss.jwt.TokenPair;
-import ao.sudojed.lss.util.PasswordUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,9 +16,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * Controller de autenticação - todos os endpoints são públicos.
+ * Controller de autenticacao - todos os endpoints sao publicos.
  * 
- * Demonstra o uso de @Public para endpoints que não requerem autenticação.
+ * Demonstra o uso de @Public para endpoints que nao requerem autenticacao
+ * e o uso da facade Auth para operacoes de autenticacao.
+ * 
+ * Comparacao com Laravel:
+ * - Auth.check()         -> Auth::check()
+ * - Auth.user()          -> Auth::user()
+ * - Auth.attempt(u, p)   -> Auth::attempt(['username' => u, 'password' => p])
+ * - Auth.hashPassword(p) -> Hash::make(p)
+ * - Auth.checkPassword() -> Hash::check()
  */
 @RestController
 @RequestMapping("/auth")
@@ -49,7 +57,7 @@ public class AuthController {
     }
 
     /**
-     * Registra um novo usuário.
+     * Registra um novo usuario.
      * 
      * Uso: POST /auth/register
      * Body: { "username": "john", "email": "john@example.com", "password": "123456" }
@@ -57,17 +65,17 @@ public class AuthController {
     @Public
     @PostMapping("/register")
     public ResponseEntity<Map<String, Object>> register(@RequestBody RegisterRequest request) {
-        // Verifica se usuário já existe
+        // Verifica se usuario ja existe
         if (userService.findByUsername(request.username()).isPresent()) {
             return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(Map.of(
                     "error", "USER_EXISTS",
-                    "message", "Usuário já existe: " + request.username()
+                    "message", "Usuario ja existe: " + request.username()
                 ));
         }
 
-        // Cria o usuário
+        // Cria o usuario (senha eh hasheada internamente com Auth.hashPassword)
         User user = userService.createUser(
             request.username(),
             request.email(),
@@ -77,7 +85,7 @@ public class AuthController {
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(Map.of(
-                "message", "Usuário criado com sucesso!",
+                "message", "Usuario criado com sucesso!",
                 "userId", user.getId(),
                 "username", user.getUsername()
             ));
@@ -100,17 +108,16 @@ public class AuthController {
     @Public
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request) {
-        // Busca usuário
-        User user = userService.findByUsername(request.username())
-            .orElse(null);
+        // Busca usuario
+        User user = userService.findByUsername(request.username()).orElse(null);
 
-        // Valida credenciais
-        if (user == null || !PasswordUtils.matches(request.password(), user.getPasswordHash())) {
+        // Valida credenciais usando Auth.checkPassword (como Hash::check no Laravel)
+        if (user == null || !Auth.checkPassword(request.password(), user.getPasswordHash())) {
             return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of(
                     "error", "INVALID_CREDENTIALS",
-                    "message", "Usuário ou senha inválidos"
+                    "message", "Usuario ou senha invalidos"
                 ));
         }
 
@@ -147,7 +154,7 @@ public class AuthController {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(Map.of(
                     "error", "MISSING_TOKEN",
-                    "message", "refresh_token é obrigatório"
+                    "message", "refresh_token eh obrigatorio"
                 ));
         }
 
@@ -159,7 +166,7 @@ public class AuthController {
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of(
                     "error", "INVALID_REFRESH_TOKEN",
-                    "message", "Refresh token inválido ou expirado"
+                    "message", "Refresh token invalido ou expirado"
                 ));
         }
     }

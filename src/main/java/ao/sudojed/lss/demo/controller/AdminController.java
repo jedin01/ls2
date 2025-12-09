@@ -1,10 +1,10 @@
 package ao.sudojed.lss.demo.controller;
 
 import ao.sudojed.lss.annotation.Admin;
-import ao.sudojed.lss.annotation.LazySecured;
-import ao.sudojed.lss.core.LazyUser;
 import ao.sudojed.lss.demo.model.User;
 import ao.sudojed.lss.demo.service.UserService;
+import ao.sudojed.lss.facade.Auth;
+import ao.sudojed.lss.facade.Guard;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,11 +12,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controller administrativo.
+ * Controller administrativo demonstrando uso das facades Auth e Guard.
  * 
- * Demonstra o uso de:
- * - @Admin para endpoints exclusivos de administradores
- * - @LazySecured(roles = {...}) para controle granular de roles
+ * Duas formas de proteger endpoints:
+ * 1. Declarativa: @Admin, @LazySecured (verificacao automatica via AOP)
+ * 2. Imperativa: Guard.admin(), Guard.role() (verificacao manual no codigo)
+ * 
+ * Comparacao com Laravel:
+ * - @Admin           -> middleware('admin')
+ * - Guard.admin()    -> Gate::authorize('admin')
+ * - Auth.user()      -> auth()->user()
+ * - Auth.id()        -> auth()->id()
  */
 @RestController
 @RequestMapping("/api/admin")
@@ -29,16 +35,15 @@ public class AdminController {
     }
 
     /**
-     * Lista todos os usuários do sistema.
+     * Lista todos os usuarios do sistema.
      * 
-     * @Admin - Apenas usuários com role ADMIN podem acessar
-     * 
-     * Uso: GET /api/admin/users
-     * Header: Authorization: Bearer <admin_token>
+     * Usa @Admin para verificacao declarativa.
+     * Usa Auth.username() para obter dados do admin logado.
      */
     @Admin
     @GetMapping("/users")
-    public Map<String, Object> listUsers(LazyUser admin) {
+    public Map<String, Object> listUsers() {
+        // Sem parametro LazyUser - usa Auth facade!
         List<Map<String, Object>> users = userService.findAll().stream()
             .map(user -> Map.<String, Object>of(
                 "id", user.getId(),
@@ -52,20 +57,21 @@ public class AdminController {
         return Map.of(
             "total", users.size(),
             "users", users,
-            "requestedBy", admin.getUsername()
+            "requestedBy", Auth.username()  // Auth facade!
         );
     }
 
     /**
-     * Obtém detalhes de um usuário específico.
+     * Obtem detalhes de um usuario especifico.
      * 
-     * @Admin - Apenas administradores
-     * 
-     * Uso: GET /api/admin/users/{userId}
+     * Usa Guard.admin() para verificacao imperativa (estilo Laravel Gate).
+     * Isso permite logica condicional antes da verificacao.
      */
-    @Admin
     @GetMapping("/users/{userId}")
     public ResponseEntity<Map<String, Object>> getUser(@PathVariable String userId) {
+        // Verificacao imperativa - como Gate::authorize('admin') no Laravel
+        Guard.admin();
+        
         return userService.findById(userId)
             .map(user -> ResponseEntity.ok(Map.<String, Object>of(
                 "id", user.getId(),
@@ -79,23 +85,22 @@ public class AdminController {
     }
 
     /**
-     * Deleta um usuário.
+     * Deleta um usuario.
      * 
-     * @Admin - Apenas administradores podem deletar usuários
-     * 
-     * Uso: DELETE /api/admin/users/{userId}
+     * Demonstra uso combinado de Guard e Auth:
+     * - Guard.admin() para autorizar
+     * - Auth.id() para verificar auto-delecao
      */
-    @Admin
     @DeleteMapping("/users/{userId}")
-    public ResponseEntity<Map<String, Object>> deleteUser(
-            @PathVariable String userId,
-            LazyUser admin) {
+    public ResponseEntity<Map<String, Object>> deleteUser(@PathVariable String userId) {
+        // Verificacao imperativa
+        Guard.admin();
         
-        // Não permite auto-deleção
-        if (userId.equals(admin.getId())) {
+        // Nao permite auto-delecao - usa Auth.id()!
+        if (userId.equals(Auth.id())) {
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "CANNOT_DELETE_SELF",
-                "message", "Você não pode deletar sua própria conta"
+                "message", "Voce nao pode deletar sua propria conta"
             ));
         }
 
@@ -103,9 +108,9 @@ public class AdminController {
         
         if (deleted) {
             return ResponseEntity.ok(Map.of(
-                "message", "Usuário deletado com sucesso",
+                "message", "Usuario deletado com sucesso",
                 "deletedUserId", userId,
-                "deletedBy", admin.getUsername()
+                "deletedBy", Auth.username()  // Auth facade!
             ));
         } else {
             return ResponseEntity.notFound().build();
@@ -113,24 +118,23 @@ public class AdminController {
     }
 
     /**
-     * Adiciona role a um usuário.
+     * Adiciona role a um usuario.
      * 
-     * Exemplo de @LazySecured com roles específicas
-     * 
-     * Uso: POST /api/admin/users/{userId}/roles
-     * Body: { "role": "MANAGER" }
+     * Usa Guard.role() para exigir role especifica.
      */
-    @LazySecured(roles = "ADMIN", message = "Apenas administradores podem modificar roles")
     @PostMapping("/users/{userId}/roles")
     public ResponseEntity<Map<String, Object>> addRole(
             @PathVariable String userId,
             @RequestBody Map<String, String> body) {
         
+        // Exige role ADMIN - como Gate::authorize('manage-roles') no Laravel
+        Guard.role("ADMIN");
+        
         String role = body.get("role");
         if (role == null || role.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "MISSING_ROLE",
-                "message", "Campo 'role' é obrigatório"
+                "message", "Campo 'role' eh obrigatorio"
             ));
         }
 
@@ -148,13 +152,17 @@ public class AdminController {
     }
 
     /**
-     * Dashboard administrativo com estatísticas.
+     * Dashboard administrativo com estatisticas.
      * 
-     * Uso: GET /api/admin/dashboard
+     * Demonstra verificacao fluente com Guard.check()
      */
-    @Admin
     @GetMapping("/dashboard")
-    public Map<String, Object> dashboard(LazyUser admin) {
+    public Map<String, Object> dashboard() {
+        // Verificacao fluente - permite combinar condicoes
+        Guard.check()
+            .role("ADMIN")
+            .authorize();
+        
         List<User> allUsers = userService.findAll();
         
         long totalUsers = allUsers.size();
@@ -169,10 +177,32 @@ public class AdminController {
                 "regularUsers", totalUsers - adminCount
             ),
             "admin", Map.of(
-                "username", admin.getUsername(),
-                "roles", admin.getRoles()
+                "username", Auth.username(),
+                "roles", Auth.user().getRoles(),
+                "isAdmin", Auth.isAdmin()
             ),
             "message", "Bem-vindo ao painel administrativo!"
+        );
+    }
+
+    /**
+     * Endpoint que aceita ADMIN ou MANAGER.
+     * 
+     * Demonstra Guard.anyRole() para multiplas roles aceitas.
+     */
+    @GetMapping("/reports")
+    public Map<String, Object> reports() {
+        // Aceita ADMIN ou MANAGER - como middleware('role:admin,manager') no Laravel
+        Guard.anyRole("ADMIN", "MANAGER");
+        
+        return Map.of(
+            "reports", List.of(
+                Map.of("name", "Vendas Mensais", "value", 15000),
+                Map.of("name", "Novos Usuarios", "value", 42),
+                Map.of("name", "Pedidos Pendentes", "value", 7)
+            ),
+            "generatedBy", Auth.username(),
+            "userRoles", Auth.user().getRoles()
         );
     }
 }
