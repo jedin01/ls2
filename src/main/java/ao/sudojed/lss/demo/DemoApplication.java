@@ -6,31 +6,31 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * 🚀 Aplicação de demonstração do LazySpringSecurity (LSS)
+ * Aplicacao de demonstracao do LazySpringSecurity (LSS)
  * 
- * Esta aplicação demonstra como usar o LSS para implementar
- * autenticação e autorização de forma simples e elegante.
+ * Esta aplicacao demonstra como usar o LSS para implementar
+ * autenticacao e autorizacao de forma simples e elegante.
  * 
  * Execute: ./mvnw spring-boot:run -Dspring-boot.run.main-class=ao.sudojed.lss.demo.DemoApplication
  * 
- * Endpoints disponíveis:
+ * Endpoints disponiveis:
  * 
- * 📢 PÚBLICOS (sem autenticação):
- *   POST /auth/register     - Registrar novo usuário
+ * PUBLICOS (sem autenticacao):
+ *   POST /auth/register     - Registrar novo usuario
  *   POST /auth/login        - Login e obter token JWT
  *   GET  /auth/health       - Health check
  * 
- * 🔐 PROTEGIDOS (requer autenticação):
- *   GET  /api/profile       - Ver perfil do usuário logado
+ * PROTEGIDOS (requer autenticacao):
+ *   GET  /api/profile       - Ver perfil do usuario logado
  *   PUT  /api/profile       - Atualizar perfil
- *   GET  /api/orders        - Listar pedidos do usuário
+ *   GET  /api/orders        - Listar pedidos do usuario
  * 
- * 👑 ADMIN ONLY:
- *   GET  /api/admin/users   - Listar todos usuários
- *   DELETE /api/admin/users/{id} - Deletar usuário
+ * ADMIN ONLY:
+ *   GET  /api/admin/users   - Listar todos usuarios
+ *   DELETE /api/admin/users/{id} - Deletar usuario
  * 
- * 🔒 OWNER (apenas dono do recurso ou admin):
- *   GET  /api/users/{userId}/settings - Ver configurações do usuário
+ * OWNER (apenas dono do recurso ou admin):
+ *   GET  /api/users/{userId}/settings - Ver configuracoes do usuario
  */
 @SpringBootApplication(scanBasePackages = "ao.sudojed.lss.demo")
 @EnableLazySecurity(
@@ -50,25 +50,25 @@ public class DemoApplication {
     public static void main(String[] args) {
         System.out.println("""
             
-            ╔═══════════════════════════════════════════════════════════════╗
-            ║          🔐 LazySpringSecurity Demo Application 🔐            ║
-            ╠═══════════════════════════════════════════════════════════════╣
-            ║                                                               ║
-            ║  Endpoints disponíveis:                                       ║
-            ║                                                               ║
-            ║  📢 PÚBLICOS:                                                 ║
-            ║     POST /auth/register  - Registrar usuário                  ║
-            ║     POST /auth/login     - Login                              ║
-            ║     GET  /auth/health    - Health check                       ║
-            ║                                                               ║
-            ║  🔐 AUTENTICADOS:                                             ║
-            ║     GET  /api/profile    - Ver perfil                         ║
-            ║     GET  /api/orders     - Listar pedidos                     ║
-            ║                                                               ║
-            ║  👑 ADMIN:                                                    ║
-            ║     GET  /api/admin/users - Listar usuários                   ║
-            ║                                                               ║
-            ╚═══════════════════════════════════════════════════════════════╝
+            ================================================================
+                   LazySpringSecurity Demo Application
+            ================================================================
+            
+              Endpoints disponiveis:
+            
+              PUBLICOS:
+                 POST /auth/register  - Registrar usuario
+                 POST /auth/login     - Login
+                 GET  /auth/health    - Health check
+            
+              AUTENTICADOS:
+                 GET  /api/profile    - Ver perfil
+                 GET  /api/orders     - Listar pedidos
+            
+              ADMIN:
+                 GET  /api/admin/users - Listar usuarios
+            
+            ================================================================
             """);
         
         SpringApplication.run(DemoApplication.class, args);

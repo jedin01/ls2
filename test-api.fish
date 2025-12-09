@@ -1,7 +1,7 @@
 #!/usr/bin/env fish
 
 # ============================================================================
-# 🔐 LazySpringSecurity - Script de Teste
+# LazySpringSecurity - Script de Teste
 # ============================================================================
 # 
 # Este script demonstra como usar a API do LSS Demo.
@@ -15,28 +15,28 @@
 set BASE_URL "http://localhost:8080"
 
 echo "
-╔═══════════════════════════════════════════════════════════════╗
-║          🔐 LazySpringSecurity - Testes de API 🔐             ║
-╚═══════════════════════════════════════════════════════════════╝
+================================================================
+         LazySpringSecurity - Testes de API
+================================================================
 "
 
 # ============================================================================
-echo "📢 1. HEALTH CHECK (Público)"
-echo "─────────────────────────────────────────────"
+echo "1. HEALTH CHECK (Publico)"
+echo "-----------------------------------------"
 curl -s "$BASE_URL/auth/health" | jq .
 echo ""
 
 # ============================================================================
-echo "📢 2. REGISTRO DE NOVO USUÁRIO (Público)"
-echo "─────────────────────────────────────────────"
+echo "2. REGISTRO DE NOVO USUARIO (Publico)"
+echo "-----------------------------------------"
 curl -s -X POST "$BASE_URL/auth/register" \
   -H "Content-Type: application/json" \
   -d '{"username": "teste", "email": "teste@example.com", "password": "senha123"}' | jq .
 echo ""
 
 # ============================================================================
-echo "🔐 3. LOGIN COMO USUÁRIO NORMAL"
-echo "─────────────────────────────────────────────"
+echo "3. LOGIN COMO USUARIO NORMAL"
+echo "-----------------------------------------"
 set LOGIN_RESPONSE (curl -s -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"username": "john", "password": "123456"}')
@@ -45,65 +45,65 @@ echo $LOGIN_RESPONSE | jq .
 # Extrai o token
 set USER_TOKEN (echo $LOGIN_RESPONSE | jq -r '.access_token')
 echo ""
-echo "🎫 Token do usuário: "(string sub -l 50 $USER_TOKEN)"..."
+echo "Token do usuario: "(string sub -l 50 $USER_TOKEN)"..."
 echo ""
 
 # ============================================================================
-echo "🔐 4. ACESSAR PERFIL (Autenticado)"
-echo "─────────────────────────────────────────────"
+echo "4. ACESSAR PERFIL (Autenticado)"
+echo "-----------------------------------------"
 curl -s "$BASE_URL/api/profile" \
   -H "Authorization: Bearer $USER_TOKEN" | jq .
 echo ""
 
 # ============================================================================
-echo "🔐 5. ACESSAR /api/me (Autenticado)"
-echo "─────────────────────────────────────────────"
+echo "5. ACESSAR /api/me (Autenticado)"
+echo "-----------------------------------------"
 curl -s "$BASE_URL/api/me" \
   -H "Authorization: Bearer $USER_TOKEN" | jq .
 echo ""
 
 # ============================================================================
-echo "🔐 6. LISTAR MEUS PEDIDOS (Autenticado)"
-echo "─────────────────────────────────────────────"
+echo "6. LISTAR MEUS PEDIDOS (Autenticado)"
+echo "-----------------------------------------"
 curl -s "$BASE_URL/api/orders" \
   -H "Authorization: Bearer $USER_TOKEN" | jq .
 echo ""
 
 # ============================================================================
-echo "❌ 7. TENTAR ACESSAR ADMIN SEM SER ADMIN"
-echo "─────────────────────────────────────────────"
+echo "7. TENTAR ACESSAR ADMIN SEM SER ADMIN"
+echo "-----------------------------------------"
 echo "Esperado: 403 Forbidden"
 curl -s "$BASE_URL/api/admin/users" \
   -H "Authorization: Bearer $USER_TOKEN" | jq .
 echo ""
 
 # ============================================================================
-echo "👑 8. LOGIN COMO ADMIN"
-echo "─────────────────────────────────────────────"
+echo "8. LOGIN COMO ADMIN"
+echo "-----------------------------------------"
 set ADMIN_RESPONSE (curl -s -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin123"}')
 set ADMIN_TOKEN (echo $ADMIN_RESPONSE | jq -r '.access_token')
-echo "🎫 Token do admin: "(string sub -l 50 $ADMIN_TOKEN)"..."
+echo "Token do admin: "(string sub -l 50 $ADMIN_TOKEN)"..."
 echo ""
 
 # ============================================================================
-echo "👑 9. LISTAR TODOS USUÁRIOS (Admin)"
-echo "─────────────────────────────────────────────"
+echo "9. LISTAR TODOS USUARIOS (Admin)"
+echo "-----------------------------------------"
 curl -s "$BASE_URL/api/admin/users" \
   -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
 echo ""
 
 # ============================================================================
-echo "👑 10. DASHBOARD ADMIN"
-echo "─────────────────────────────────────────────"
+echo "10. DASHBOARD ADMIN"
+echo "-----------------------------------------"
 curl -s "$BASE_URL/api/admin/dashboard" \
   -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
 echo ""
 
 # ============================================================================
-echo "🔐 11. CRIAR PEDIDO"
-echo "─────────────────────────────────────────────"
+echo "11. CRIAR PEDIDO"
+echo "-----------------------------------------"
 curl -s -X POST "$BASE_URL/api/orders" \
   -H "Authorization: Bearer $USER_TOKEN" \
   -H "Content-Type: application/json" \
@@ -111,14 +111,14 @@ curl -s -X POST "$BASE_URL/api/orders" \
 echo ""
 
 # ============================================================================
-echo "❌ 12. TENTAR ACESSAR SEM TOKEN"
-echo "─────────────────────────────────────────────"
+echo "12. TENTAR ACESSAR SEM TOKEN"
+echo "-----------------------------------------"
 echo "Esperado: 401 Unauthorized"
 curl -s "$BASE_URL/api/profile" | jq .
 echo ""
 
 echo "
-╔═══════════════════════════════════════════════════════════════╗
-║                    ✅ Testes Concluídos!                      ║
-╚═══════════════════════════════════════════════════════════════╝
+================================================================
+                    Testes Concluidos!
+================================================================
 "

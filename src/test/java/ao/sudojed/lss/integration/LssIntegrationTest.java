@@ -71,7 +71,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(1)
-    @DisplayName("✅ Endpoint @Public deve ser acessível sem token")
+    @DisplayName("Endpoint @Public deve ser acessivel sem token")
     void publicEndpointShouldBeAccessibleWithoutToken() throws Exception {
         mockMvc.perform(get("/api/public/health"))
                 .andExpect(status().isOk())
@@ -80,7 +80,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(2)
-    @DisplayName("✅ Login deve retornar tokens JWT")
+    @DisplayName("Login deve retornar tokens JWT")
     void loginShouldReturnTokens() throws Exception {
         String loginRequest = """
             {
@@ -98,14 +98,14 @@ class LssIntegrationTest {
                 .andExpect(jsonPath("$.token_type").value("Bearer"))
                 .andReturn();
 
-        System.out.println("🔑 Login Response: " + result.getResponse().getContentAsString());
+        System.out.println("Login Response: " + result.getResponse().getContentAsString());
     }
 
     // ==================== Testes de Autenticação ====================
 
     @Test
     @Order(3)
-    @DisplayName("❌ Endpoint protegido deve retornar 401 sem token")
+    @DisplayName("Endpoint protegido deve retornar 401 sem token")
     void protectedEndpointShouldReturn401WithoutToken() throws Exception {
         mockMvc.perform(get("/api/profile"))
                 .andExpect(status().isUnauthorized())
@@ -114,7 +114,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(4)
-    @DisplayName("❌ Endpoint protegido deve retornar 401 com token inválido")
+    @DisplayName("Endpoint protegido deve retornar 401 com token invalido")
     void protectedEndpointShouldReturn401WithInvalidToken() throws Exception {
         mockMvc.perform(get("/api/profile")
                         .header("Authorization", "Bearer invalid.token.here"))
@@ -123,7 +123,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(5)
-    @DisplayName("✅ Endpoint @LazySecured deve aceitar token válido")
+    @DisplayName("Endpoint @LazySecured deve aceitar token valido")
     void protectedEndpointShouldAcceptValidToken() throws Exception {
         mockMvc.perform(get("/api/profile")
                         .header("Authorization", "Bearer " + userToken))
@@ -136,7 +136,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(6)
-    @DisplayName("❌ Usuário comum NÃO pode acessar endpoint @Admin")
+    @DisplayName("Usuario comum NAO pode acessar endpoint @Admin")
     void regularUserCannotAccessAdminEndpoint() throws Exception {
         mockMvc.perform(get("/api/admin/users")
                         .header("Authorization", "Bearer " + userToken))
@@ -146,7 +146,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(7)
-    @DisplayName("✅ Admin PODE acessar endpoint @Admin")
+    @DisplayName("Admin PODE acessar endpoint @Admin")
     void adminCanAccessAdminEndpoint() throws Exception {
         mockMvc.perform(get("/api/admin/users")
                         .header("Authorization", "Bearer " + adminToken))
@@ -156,7 +156,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(8)
-    @DisplayName("✅ Endpoint com múltiplas roles aceita qualquer uma")
+    @DisplayName("Endpoint com multiplas roles aceita qualquer uma")
     void multipleRolesAcceptsAny() throws Exception {
         // User tem role USER
         mockMvc.perform(get("/api/dashboard")
@@ -173,7 +173,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(9)
-    @DisplayName("✅ Usuário pode acessar seus próprios dados com @Owner")
+    @DisplayName("Usuario pode acessar seus proprios dados com @Owner")
     void userCanAccessOwnData() throws Exception {
         mockMvc.perform(get("/api/users/user-123/orders")
                         .header("Authorization", "Bearer " + userToken))
@@ -182,7 +182,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(10)
-    @DisplayName("❌ Usuário NÃO pode acessar dados de outro com @Owner")
+    @DisplayName("Usuario NAO pode acessar dados de outro com @Owner")
     void userCannotAccessOthersData() throws Exception {
         mockMvc.perform(get("/api/users/other-user-999/orders")
                         .header("Authorization", "Bearer " + userToken))
@@ -191,7 +191,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(11)
-    @DisplayName("✅ Admin pode bypassar @Owner")
+    @DisplayName("Admin pode bypassar @Owner")
     void adminCanBypassOwner() throws Exception {
         mockMvc.perform(get("/api/users/other-user-999/orders")
                         .header("Authorization", "Bearer " + adminToken))
@@ -202,7 +202,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(12)
-    @DisplayName("✅ LazyUser é injetado automaticamente no controller")
+    @DisplayName("LazyUser e injetado automaticamente no controller")
     void lazyUserIsInjectedAutomatically() throws Exception {
         mockMvc.perform(get("/api/me")
                         .header("Authorization", "Bearer " + userToken))
@@ -216,7 +216,7 @@ class LssIntegrationTest {
 
     @Test
     @Order(13)
-    @DisplayName("✅ PasswordUtils deve fazer hash e validar senhas")
+    @DisplayName("PasswordUtils deve fazer hash e validar senhas")
     void passwordUtilsShouldHashAndValidate() {
         String rawPassword = "mySecretPassword123";
         
@@ -230,7 +230,7 @@ class LssIntegrationTest {
         assertTrue(PasswordUtils.matches(rawPassword, hash));
         assertFalse(PasswordUtils.matches("wrongPassword", hash));
         
-        System.out.println("🔒 Password Hash: " + hash);
+        System.out.println("Password Hash: " + hash);
     }
 
     // ==================== Aplicação de Teste ====================

@@ -44,7 +44,7 @@ public class AuthController {
             "status", "UP",
             "service", "LSS Demo API",
             "version", "1.0.0",
-            "message", "🚀 LazySpringSecurity está funcionando!"
+            "message", "LazySpringSecurity is running!"
         );
     }
 
@@ -126,7 +126,7 @@ public class AuthController {
         // Gera tokens
         TokenPair tokens = jwtService.createTokens(lazyUser);
 
-        System.out.println("✅ Login bem-sucedido: " + user.getUsername());
+        System.out.println("Login bem-sucedido: " + user.getUsername());
 
         return ResponseEntity.ok(tokens.toMap());
     }

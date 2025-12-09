@@ -94,6 +94,7 @@ public class LazyUser implements Serializable {
     /**
      * Verifica se tem TODAS as roles.
      */
+    
     public boolean hasAllRoles(String... roles) {
         return Arrays.stream(roles)
                 .map(this::normalizeRole)

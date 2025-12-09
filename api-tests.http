@@ -5,7 +5,7 @@
 @contentType = application/json
 
 ### ================================================================
-### 📢 ENDPOINTS PÚBLICOS
+### ENDPOINTS PUBLICOS
 ### ================================================================
 
 ### Health Check
@@ -52,7 +52,7 @@ Content-Type: {{contentType}}
 }
 
 ### ================================================================
-### 🔐 ENDPOINTS AUTENTICADOS (requer Bearer token)
+### ENDPOINTS AUTENTICADOS (requer Bearer token)
 ### ================================================================
 
 @userToken = {{loginUser.response.body.access_token}}
@@ -93,7 +93,7 @@ Content-Type: {{contentType}}
 }
 
 ### ================================================================
-### 👑 ENDPOINTS ADMIN (requer role ADMIN)
+### ENDPOINTS ADMIN (requer role ADMIN)
 ### ================================================================
 
 ### Listar todos usuários (ADMIN)
@@ -118,7 +118,7 @@ Content-Type: {{contentType}}
 }
 
 ### ================================================================
-### 🔒 ENDPOINTS COM @Owner (verifica propriedade)
+### ENDPOINTS COM @Owner (verifica propriedade)
 ### ================================================================
 
 ### Ver pedidos de outro usuário (user-1 tentando ver user-2)
@@ -132,7 +132,7 @@ GET {{baseUrl}}/api/users/user-1/orders
 Authorization: Bearer {{adminToken}}
 
 ### ================================================================
-### ❌ TESTES DE ERRO
+### TESTES DE ERRO
 ### ================================================================
 
 ### Acesso sem token
@@ -160,7 +160,7 @@ Content-Type: {{contentType}}
 }
 
 ### ================================================================
-### 🔄 REFRESH TOKEN
+### REFRESH TOKEN
 ### ================================================================
 
 ### Refresh token (use o refresh_token do login)
