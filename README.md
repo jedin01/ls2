@@ -12,12 +12,13 @@
 
 - **Zero Configuration** - Works out of the box with sensible defaults
 - **Annotation-Driven** - Simple, readable annotations for security
-- **Fluent DSL** - Optional configuration with builder pattern
 - **JWT Support** - Built-in JWT authentication with refresh tokens
 - **Role & Permission Based** - Fine-grained access control
 - **Spring Boot Native** - Seamless auto-configuration
-- **Middleware Support** - Extensible request processing chain
-- **Rate Limiting** - Built-in rate limiting support
+- **Rate Limiting** - Built-in rate limiting with @RateLimit
+- **Audit Logging** - Automatic security event logging with @Audit
+- **Smart Caching** - Security-aware response caching with @Cached
+- **Auth Facades** - Imperative security checks with Auth & Guard
 
 ---
 
@@ -202,7 +203,7 @@ Restricts access to the owner of a resource.
 public Settings getSettings(@PathVariable String userId) { ... }
 
 // Allow admin to bypass ownership check
-@Owner(value = "userId", allowRoles = {"ADMIN", "SUPPORT"})
+@Owner(field = "userId", bypassRoles = {"ADMIN", "SUPPORT"})
 @PutMapping("/users/{userId}")
 public User updateUser(@PathVariable String userId) { ... }
 ```
@@ -211,143 +212,145 @@ public User updateUser(@PathVariable String userId) { ... }
 Limits request rate to prevent abuse.
 
 ```java
-// 10 requests per minute per IP
-@RateLimit(requests = 10, period = 1, unit = TimeUnit.MINUTES)
+// 5 requests per 5 minutes per IP
+@RateLimit(requests = 5, window = 300, key = "ip")
 @PostMapping("/login")
 public AuthResponse login(@RequestBody LoginRequest request) { ... }
 
-// 100 requests per hour per user
-@RateLimit(requests = 100, unit = TimeUnit.HOURS, keyBy = KeyType.USER)
+// 100 requests per minute per authenticated user
+@RateLimit(requests = 100, window = 60, perUser = true)
 @GetMapping("/search")
 public Results search(@RequestParam String q) { ... }
 ```
 
+### `@Audit`
+Automatic security event logging.
+
+```java
+// Basic audit logging
+@Audit
+@Secured("ADMIN")
+@DeleteMapping("/users/{id}")
+public void deleteUser(@PathVariable Long id) { ... }
+
+// Custom action name and sensitivity level
+@Audit(action = "PASSWORD_RESET", level = AuditLevel.SENSITIVE)
+@Secured("ADMIN")
+@PutMapping("/users/{id}/password")
+public void resetPassword(@PathVariable Long id) { ... }
+
+// Include parameters but exclude sensitive ones
+@Audit(includeParams = true, excludeParams = {"password", "secret"})
+@PostMapping("/users")
+public User createUser(@RequestBody CreateUserRequest request) { ... }
+```
+
+### `@Cached`
+Security-aware response caching.
+
+```java
+// Cache for 5 minutes per user
+@Cached(ttl = 300)
+@Secured
+@GetMapping("/profile")
+public User getProfile() { ... }
+
+// Global cache for public data
+@Cached(ttl = 600, perUser = false)
+@Public
+@GetMapping("/products")
+public List<Product> getProducts() { ... }
+
+// Cache per role with condition
+@Cached(ttl = 120, perRole = true, condition = "#result.size() > 0")
+@Secured({"ADMIN", "MANAGER"})
+@GetMapping("/reports")
+public List<Report> getReports() { ... }
+```
+
 ---
 
-## Advanced Configuration
+## Additional Features
 
-### Fluent DSL Configuration
+### Rate Limiting
 
 ```java
-@Configuration
-public class SecurityConfig {
+@RestController
+public class ApiController {
 
-    @Bean
-    public LazySecurityConfigurer lazySecurity() {
-        return LazySecurity.configure()
-            // Public endpoints
-            .publicPaths("/api/auth/**", "/health", "/docs/**")
-            
-            // Path-based rules
-            .path("/api/admin/**").roles("ADMIN").and()
-            .path("/api/moderator/**").roles("ADMIN", "MODERATOR").and()
-            .path("/api/posts/**").methods("GET").permitAll().and()
-            .path("/api/posts/**").methods("POST", "PUT", "DELETE").authenticated().and()
-            
-            // Default behavior
-            .defaultAuthenticated()
-            
-            // JWT configuration
-            .jwt(jwt -> jwt
-                .secret("your-secret-key")
-                .expirationHours(24)
-                .refreshEnabled(true)
-            )
-            
-            // Custom handlers
-            .onAccessDenied((req, res, ex) -> {
-                res.setStatus(403);
-                res.getWriter().write("{\"error\": \"Access denied\"}");
-            })
-            
-            // Options
-            .cors(true)
-            .csrf(false)
-            .debug(true);
+    @RateLimit(requests = 100, window = 60) // 100 requests per minute
+    @PostMapping("/api/data")
+    public Data processData() {
+        return dataService.process();
+    }
+
+    @RateLimit(requests = 5, window = 300, key = "ip") // 5 attempts per 5 min per IP
+    @PostMapping("/login")
+    public Token login(@RequestBody LoginRequest request) {
+        return authService.authenticate(request);
+    }
+
+    @RateLimit(requests = 10, window = 60, perUser = true) // Per authenticated user
+    @PostMapping("/messages")
+    public Message sendMessage(@RequestBody MessageRequest request) {
+        return messageService.send(request);
     }
 }
 ```
 
-### Custom Authentication Extractor
+### Audit Logging
 
 ```java
-@Component
-public class ApiKeyAuthExtractor implements AuthenticationExtractor {
+@RestController
+public class AdminController {
 
-    @Override
-    public Principal extract(HttpServletRequest request) {
-        String apiKey = request.getHeader("X-API-Key");
-        if (apiKey == null) return null;
-        
-        // Validate API key and return principal
-        return apiKeyService.validate(apiKey)
-            .map(key -> Principal.builder()
-                .id(key.getClientId())
-                .username(key.getClientName())
-                .roles(key.getRoles())
-                .build())
-            .orElse(null);
+    @Audit // Basic audit logging
+    @Secured("ADMIN")
+    @DeleteMapping("/users/{id}")
+    public void deleteUser(@PathVariable Long id) {
+        userService.delete(id);
     }
 
-    @Override
-    public int priority() {
-        return 200; // Higher than JWT (100)
+    @Audit(action = "PASSWORD_RESET", level = AuditLevel.SENSITIVE)
+    @Secured("ADMIN")
+    @PutMapping("/users/{id}/password")
+    public void resetPassword(@PathVariable Long id, @RequestBody PasswordReset request) {
+        userService.resetPassword(id, request.getNewPassword());
     }
 
-    @Override
-    public boolean supports(HttpServletRequest request) {
-        return request.getHeader("X-API-Key") != null;
+    @Audit(includeParams = true, excludeParams = {"password"})
+    @PostMapping("/users")
+    public User createUser(@RequestBody CreateUserRequest request) {
+        return userService.create(request);
     }
 }
 ```
 
-### Custom Middleware
+### Smart Caching
 
 ```java
-@Component
-public class AuditMiddleware implements Middleware {
+@RestController
+public class DataController {
 
-    private final AuditService auditService;
-
-    @Override
-    public MiddlewareResult process(HttpServletRequest request, 
-                                    HttpServletResponse response, 
-                                    Principal principal) {
-        auditService.log(
-            request.getMethod(),
-            request.getRequestURI(),
-            principal != null ? principal.getId() : "anonymous"
-        );
-        
-        return MiddlewareResult.proceed();
+    @Cached(ttl = 300) // Cache for 5 minutes per user
+    @Secured
+    @GetMapping("/profile")
+    public User getProfile() {
+        return userService.getCurrentUserProfile();
     }
 
-    @Override
-    public int getOrder() {
-        return 10; // Early in chain
+    @Cached(ttl = 600, perUser = false) // Global cache for public data
+    @Public
+    @GetMapping("/products")
+    public List<Product> getProducts() {
+        return productService.findAll();
     }
-}
-```
 
-### IP Blocking Middleware
-
-```java
-@Component
-public class IpBlockMiddleware implements Middleware {
-
-    private final Set<String> blockedIps;
-
-    @Override
-    public MiddlewareResult process(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    Principal principal) {
-        String clientIp = request.getRemoteAddr();
-        
-        if (blockedIps.contains(clientIp)) {
-            return MiddlewareResult.deny("Your IP has been blocked", 403);
-        }
-        
-        return MiddlewareResult.proceed();
+    @Cached(ttl = 120, perRole = true) // Cache per role
+    @Secured({"ADMIN", "MANAGER"})
+    @GetMapping("/reports")
+    public List<Report> getReports() {
+        return reportService.generateReports();
     }
 }
 ```
@@ -389,6 +392,37 @@ public class AuthController {
         }
         
         return new TokenResponse(newToken, null, "Bearer", 86400);
+    }
+}
+```
+
+### Authentication Endpoints
+
+LazySpringSecurity provides powerful annotations to create authentication endpoints with zero boilerplate:
+
+```java
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Login(userService = UserService.class)
+    @PostMapping("/login")
+    public TokenResponse login(@RequestBody LoginRequest request) {
+        // Implementation is handled automatically
+        // Returns JWT tokens on successful authentication
+    }
+
+    @Register(userService = UserService.class)
+    @PostMapping("/register")
+    public UserResponse register(@RequestBody RegisterRequest request) {
+        // Automatically creates user and optionally logs them in
+        // Checks for existing users and handles validation
+    }
+
+    @RefreshToken
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@RequestBody RefreshRequest request) {
+        // Handles JWT refresh token validation and new token generation
     }
 }
 ```
