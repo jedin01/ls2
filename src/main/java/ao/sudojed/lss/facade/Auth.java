@@ -3,37 +3,38 @@ package ao.sudojed.lss.facade;
 import ao.sudojed.lss.core.LazySecurityContext;
 import ao.sudojed.lss.core.LazyUser;
 import ao.sudojed.lss.exception.UnauthorizedException;
+import ao.sudojed.lss.jwt.TokenBlacklist;
 import ao.sudojed.lss.util.PasswordUtils;
-
+import java.time.Instant;
 import java.util.Optional;
 import java.util.function.Function;
 
 /**
  * Static authentication facade for LazySpringSecurity.
- * 
+ *
  * Provides static access to authentication operations from anywhere
  * in the codebase, without requiring dependency injection.
- * 
+ *
  * <h2>Basic Usage</h2>
  * <pre>{@code
  * // Check if authenticated
  * if (Auth.check()) { ... }
- * 
+ *
  * // Get current user
  * LazyUser user = Auth.user();
- * 
+ *
  * // Check roles
  * if (Auth.hasRole("ADMIN")) { ... }
- * 
+ *
  * // Get user ID
  * String id = Auth.id();
- * 
+ *
  * // Execute action only if authenticated
  * Auth.ifAuthenticated(user -> {
  *     System.out.println("Hello, " + user.getUsername());
  * });
  * }</pre>
- * 
+ *
  * @author Sudojed Team
  * @see LazySecurityContext
  * @see LazyUser
@@ -42,6 +43,15 @@ public final class Auth {
 
     // Authentication provider (for login operations)
     private static AuthProvider provider;
+
+    // Token blacklist for revocation
+    private static TokenBlacklist tokenBlacklist;
+
+    // Current token ID (set by JwtFilter)
+    private static final ThreadLocal<String> currentTokenId =
+        new ThreadLocal<>();
+    private static final ThreadLocal<Instant> currentTokenIssuedAt =
+        new ThreadLocal<>();
 
     private Auth() {
         // Utility class - do not instantiate
@@ -53,7 +63,7 @@ public final class Auth {
 
     /**
      * Checks if there is an authenticated user.
-     * 
+     *
      * @return true if authenticated
      */
     public static boolean check() {
@@ -62,7 +72,7 @@ public final class Auth {
 
     /**
      * Checks if the user is a guest (not authenticated).
-     * 
+     *
      * @return true if NOT authenticated
      */
     public static boolean guest() {
@@ -75,7 +85,7 @@ public final class Auth {
 
     /**
      * Gets the current authenticated user.
-     * 
+     *
      * @return current LazyUser or anonymous user if not authenticated
      */
     public static LazyUser user() {
@@ -84,7 +94,7 @@ public final class Auth {
 
     /**
      * Gets the user as Optional (empty if not authenticated).
-     * 
+     *
      * @return Optional with user or empty
      */
     public static Optional<LazyUser> userOptional() {
@@ -93,7 +103,7 @@ public final class Auth {
 
     /**
      * Gets the authenticated user's ID.
-     * 
+     *
      * @return user ID or null if not authenticated
      */
     public static String id() {
@@ -102,7 +112,7 @@ public final class Auth {
 
     /**
      * Gets the authenticated user's username.
-     * 
+     *
      * @return username or null if not authenticated
      */
     public static String username() {
@@ -115,7 +125,7 @@ public final class Auth {
 
     /**
      * Checks if the user has a specific role.
-     * 
+     *
      * @param role role name (e.g., "ADMIN", "MANAGER")
      * @return true if has the role
      */
@@ -125,7 +135,7 @@ public final class Auth {
 
     /**
      * Checks if the user has any of the specified roles.
-     * 
+     *
      * @param roles array of roles
      * @return true if has at least one
      */
@@ -135,7 +145,7 @@ public final class Auth {
 
     /**
      * Checks if the user has all the specified roles.
-     * 
+     *
      * @param roles array of roles
      * @return true if has all
      */
@@ -145,7 +155,7 @@ public final class Auth {
 
     /**
      * Checks if the user has a specific permission.
-     * 
+     *
      * @param permission permission name
      * @return true if has the permission
      */
@@ -155,7 +165,7 @@ public final class Auth {
 
     /**
      * Checks if the user does NOT have a permission.
-     * 
+     *
      * @param permission permission name
      * @return true if does NOT have the permission
      */
@@ -165,7 +175,7 @@ public final class Auth {
 
     /**
      * Checks if the user is an admin.
-     * 
+     *
      * @return true if has ADMIN role
      */
     public static boolean isAdmin() {
@@ -178,7 +188,7 @@ public final class Auth {
 
     /**
      * Attempts to authenticate with credentials.
-     * 
+     *
      * @param username username
      * @param password plain text password
      * @return true if successfully authenticated
@@ -186,14 +196,15 @@ public final class Auth {
     public static boolean attempt(String username, String password) {
         if (provider == null) {
             throw new IllegalStateException(
-                "AuthProvider not configured. Configure via Auth.setProvider()");
+                "AuthProvider not configured. Configure via Auth.setProvider()"
+            );
         }
         return provider.attempt(username, password);
     }
 
     /**
      * Validates credentials without logging in.
-     * 
+     *
      * @param username username
      * @param password plain text password
      * @return true if credentials are valid
@@ -201,7 +212,8 @@ public final class Auth {
     public static boolean validate(String username, String password) {
         if (provider == null) {
             throw new IllegalStateException(
-                "AuthProvider not configured. Configure via Auth.setProvider()");
+                "AuthProvider not configured. Configure via Auth.setProvider()"
+            );
         }
         return provider.validate(username, password);
     }
@@ -209,7 +221,7 @@ public final class Auth {
     /**
      * Authenticates a user directly (without verifying password).
      * Useful after registration or password recovery.
-     * 
+     *
      * @param user user to authenticate
      */
     public static void login(LazyUser user) {
@@ -224,15 +236,131 @@ public final class Auth {
     }
 
     // ========================================================================
+    // TOKEN REVOCATION
+    // ========================================================================
+
+    /**
+     * Revokes the current token (logout current session only).
+     * The token will be blacklisted until its natural expiration.
+     */
+    public static void revokeCurrentToken() {
+        if (tokenBlacklist == null) {
+            throw new IllegalStateException(
+                "TokenBlacklist not configured. Configure via Auth.setTokenBlacklist()"
+            );
+        }
+
+        String tokenId = currentTokenId.get();
+        if (tokenId != null && !tokenId.isEmpty()) {
+            // Blacklist for 24 hours (or until token expiration)
+            tokenBlacklist.blacklist(tokenId, java.time.Duration.ofHours(24));
+        }
+
+        logout();
+    }
+
+    /**
+     * Revokes all tokens for the current user (logout from all devices).
+     */
+    public static void revokeAllTokens() {
+        if (tokenBlacklist == null) {
+            throw new IllegalStateException(
+                "TokenBlacklist not configured. Configure via Auth.setTokenBlacklist()"
+            );
+        }
+
+        String userId = id();
+        if (userId != null && !userId.isEmpty()) {
+            tokenBlacklist.blacklistAllForUser(userId);
+        }
+
+        logout();
+    }
+
+    /**
+     * Revokes all tokens for a specific user (admin action).
+     *
+     * @param userId The user ID whose tokens should be revoked
+     */
+    public static void revokeTokensForUser(String userId) {
+        if (tokenBlacklist == null) {
+            throw new IllegalStateException(
+                "TokenBlacklist not configured. Configure via Auth.setTokenBlacklist()"
+            );
+        }
+
+        if (userId != null && !userId.isEmpty()) {
+            tokenBlacklist.blacklistAllForUser(userId);
+        }
+    }
+
+    /**
+     * Checks if the current token has been revoked.
+     *
+     * @return true if the current token is blacklisted
+     */
+    public static boolean isCurrentTokenRevoked() {
+        if (tokenBlacklist == null) {
+            return false;
+        }
+
+        String tokenId = currentTokenId.get();
+        if (tokenId != null && !tokenId.isEmpty()) {
+            if (tokenBlacklist.isBlacklisted(tokenId)) {
+                return true;
+            }
+        }
+
+        // Check user-wide blacklist
+        String userId = id();
+        Instant issuedAt = currentTokenIssuedAt.get();
+        if (userId != null && issuedAt != null) {
+            return tokenBlacklist.isUserBlacklistedAt(userId, issuedAt);
+        }
+
+        return false;
+    }
+
+    /**
+     * Sets the current token information (called by JwtFilter).
+     *
+     * @param tokenId The JWT ID (jti claim)
+     * @param issuedAt When the token was issued
+     */
+    public static void setCurrentToken(String tokenId, Instant issuedAt) {
+        currentTokenId.set(tokenId);
+        currentTokenIssuedAt.set(issuedAt);
+    }
+
+    /**
+     * Clears the current token information.
+     */
+    public static void clearCurrentToken() {
+        currentTokenId.remove();
+        currentTokenIssuedAt.remove();
+    }
+
+    /**
+     * Gets the token blacklist.
+     *
+     * @return The token blacklist, or null if not configured
+     */
+    public static TokenBlacklist getTokenBlacklist() {
+        return tokenBlacklist;
+    }
+
+    // ========================================================================
     // UTILITIES
     // ========================================================================
 
     /**
      * Executes action only if authenticated.
-     * 
+     *
      * @param action action to execute with the user
      */
-    public static void ifAuthenticated(java.util.function.Consumer<LazyUser> action) {
+    public static void ifAuthenticated(
+        java.util.function.Consumer<LazyUser> action
+    ) {
         if (check()) {
             action.accept(user());
         }
@@ -240,7 +368,7 @@ public final class Auth {
 
     /**
      * Executes action only if guest.
-     * 
+     *
      * @param action action to execute
      */
     public static void ifGuest(Runnable action) {
@@ -251,18 +379,21 @@ public final class Auth {
 
     /**
      * Gets value if authenticated, or default if not.
-     * 
+     *
      * @param mapper function to extract value from user
      * @param defaultValue default value
      * @return extracted value or default
      */
-    public static <T> T getOrDefault(Function<LazyUser, T> mapper, T defaultValue) {
+    public static <T> T getOrDefault(
+        Function<LazyUser, T> mapper,
+        T defaultValue
+    ) {
         return check() ? mapper.apply(user()) : defaultValue;
     }
 
     /**
      * Gets a claim from the user.
-     * 
+     *
      * @param key claim name
      * @return claim value or null
      */
@@ -272,7 +403,7 @@ public final class Auth {
 
     /**
      * Gets a claim from the user with type.
-     * 
+     *
      * @param key claim name
      * @param defaultValue default value if claim doesn't exist
      * @return claim value or default
@@ -283,7 +414,7 @@ public final class Auth {
 
     /**
      * Requires authentication. Throws exception if not authenticated.
-     * 
+     *
      * @throws UnauthorizedException if not authenticated
      */
     public static void requireAuth() {
@@ -294,7 +425,7 @@ public final class Auth {
 
     /**
      * Requires a specific role.
-     * 
+     *
      * @param role required role
      * @throws ao.sudojed.lss.exception.AccessDeniedException if doesn't have the role
      */
@@ -302,18 +433,22 @@ public final class Auth {
         requireAuth();
         if (!hasRole(role)) {
             throw new ao.sudojed.lss.exception.AccessDeniedException(
-                "Required role: " + role);
+                "Required role: " + role
+            );
         }
     }
 
     /**
      * Executes as another user (for testing).
-     * 
+     *
      * @param user user to impersonate
      * @param action action to execute
      * @return action result
      */
-    public static <T> T runAs(LazyUser user, java.util.function.Supplier<T> action) {
+    public static <T> T runAs(
+        LazyUser user,
+        java.util.function.Supplier<T> action
+    ) {
         return LazySecurityContext.runAs(user, action);
     }
 
@@ -323,11 +458,20 @@ public final class Auth {
 
     /**
      * Configures the authentication provider.
-     * 
+     *
      * @param authProvider provider implementation
      */
     public static void setProvider(AuthProvider authProvider) {
         provider = authProvider;
+    }
+
+    /**
+     * Configures the token blacklist for revocation support.
+     *
+     * @param blacklist The token blacklist implementation
+     */
+    public static void setTokenBlacklist(TokenBlacklist blacklist) {
+        tokenBlacklist = blacklist;
     }
 
     /**
@@ -337,7 +481,7 @@ public final class Auth {
     public interface AuthProvider {
         /**
          * Attempts to authenticate with credentials.
-         * 
+         *
          * @param username username
          * @param password password
          * @return true if successful
@@ -359,7 +503,7 @@ public final class Auth {
 
     /**
      * Hashes a password.
-     * 
+     *
      * @param password plain text password
      * @return password hash
      */
@@ -369,7 +513,7 @@ public final class Auth {
 
     /**
      * Verifies if password matches the hash.
-     * 
+     *
      * @param password plain text password
      * @param hash stored hash
      * @return true if matches

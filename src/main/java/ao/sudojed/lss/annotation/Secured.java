@@ -8,8 +8,7 @@ import java.lang.annotation.Target;
 
 /**
  * Unified security annotation for protecting endpoints and methods.
- * This annotation replaces @LazySecured, @Authenticated, and @Admin
- * providing a single, intuitive API for all authorization needs.
+ * Provides a single, intuitive API for all authorization needs.
  *
  * <h2>Basic Authentication (any authenticated user)</h2>
  * <pre>{@code
@@ -70,11 +69,10 @@ import java.lang.annotation.Target;
  * @author Sudojed Team
  * @since 1.0.0
  */
-@Target({ElementType.METHOD, ElementType.TYPE})
+@Target({ ElementType.METHOD, ElementType.TYPE })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface Secured {
-
     /**
      * Roles allowed to access the resource.
      * If empty, only authentication is required (any authenticated user).

@@ -9,8 +9,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for the @Secured annotation.
  *
- * This annotation unifies @LazySecured, @Authenticated, and @Admin
- * into a single, intuitive API.
+ * This annotation provides a unified API for all authorization needs.
  */
 @DisplayName("@Secured Annotation Tests")
 class SecuredAnnotationTest {
@@ -77,14 +76,8 @@ class SecuredAnnotationTest {
         Secured secured = method.getAnnotation(Secured.class);
 
         assertNotNull(secured);
-        assertArrayEquals(
-            new String[] { "ADMIN", "MANAGER" },
-            secured.value()
-        );
-        assertFalse(
-            secured.all(),
-            "all() should default to false (ANY logic)"
-        );
+        assertArrayEquals(new String[] { "ADMIN", "MANAGER" }, secured.value());
+        assertFalse(secured.all(), "all() should default to false (ANY logic)");
     }
 
     @Test
@@ -125,10 +118,7 @@ class SecuredAnnotationTest {
 
         assertNotNull(secured);
         assertEquals(0, secured.value().length, "value() should be empty");
-        assertArrayEquals(
-            new String[] { "USER", "EDITOR" },
-            secured.roles()
-        );
+        assertArrayEquals(new String[] { "USER", "EDITOR" }, secured.roles());
     }
 
     // ==================== Permissions Tests ====================
@@ -170,7 +160,10 @@ class SecuredAnnotationTest {
 
         assertNotNull(secured);
         assertArrayEquals(new String[] { "USER" }, secured.roles());
-        assertArrayEquals(new String[] { "posts:write" }, secured.permissions());
+        assertArrayEquals(
+            new String[] { "posts:write" },
+            secured.permissions()
+        );
     }
 
     // ==================== Condition Tests ====================
@@ -200,7 +193,10 @@ class SecuredAnnotationTest {
     void securedWithCustomMessage() throws NoSuchMethodException {
         class TestController {
 
-            @Secured(value = "ADMIN", message = "Only administrators can access this resource")
+            @Secured(
+                value = "ADMIN",
+                message = "Only administrators can access this resource"
+            )
             public void customMessageEndpoint() {}
         }
 
@@ -236,9 +232,10 @@ class SecuredAnnotationTest {
     // ==================== Migration Tests (comparing with deprecated annotations) ====================
 
     @Test
-    @DisplayName("@Secured is equivalent to @Authenticated (deprecated)")
-    void securedEquivalentToAuthenticated() throws NoSuchMethodException {
-        // @Secured without params = @Authenticated = just needs to be logged in
+    @DisplayName("@Secured without params means any authenticated user")
+    void securedWithoutParamsRequiresAuthentication()
+        throws NoSuchMethodException {
+        // @Secured without params = just needs to be logged in
         class TestController {
 
             @Secured
@@ -261,9 +258,9 @@ class SecuredAnnotationTest {
     }
 
     @Test
-    @DisplayName("@Secured(\"ADMIN\") is equivalent to @Admin (deprecated)")
-    void securedEquivalentToAdmin() throws NoSuchMethodException {
-        // @Secured("ADMIN") = @Admin
+    @DisplayName("@Secured(\"ADMIN\") requires ADMIN role")
+    void securedWithAdminRole() throws NoSuchMethodException {
+        // @Secured("ADMIN") requires ADMIN role
         class TestController {
 
             @Secured("ADMIN")
@@ -278,9 +275,9 @@ class SecuredAnnotationTest {
     }
 
     @Test
-    @DisplayName("@Secured with all=false is equivalent to @LazySecured with RoleLogic.ANY")
-    void securedAnyEquivalentToLazySecuredAny() throws NoSuchMethodException {
-        // @Secured({"A", "B"}) = @LazySecured(roles={"A","B"}, logic=RoleLogic.ANY)
+    @DisplayName("@Secured with all=false requires any of the specified roles")
+    void securedWithAnyRoleLogic() throws NoSuchMethodException {
+        // @Secured({"A", "B"}) requires any of the roles (default behavior)
         class TestController {
 
             @Secured({ "ADMIN", "MANAGER" })
@@ -293,17 +290,14 @@ class SecuredAnnotationTest {
         Secured secured = method.getAnnotation(Secured.class);
 
         assertNotNull(secured);
-        assertArrayEquals(
-            new String[] { "ADMIN", "MANAGER" },
-            secured.value()
-        );
+        assertArrayEquals(new String[] { "ADMIN", "MANAGER" }, secured.value());
         assertFalse(secured.all(), "all=false means ANY role is sufficient");
     }
 
     @Test
-    @DisplayName("@Secured with all=true is equivalent to @LazySecured with RoleLogic.ALL")
-    void securedAllEquivalentToLazySecuredAll() throws NoSuchMethodException {
-        // @Secured(value={"A", "B"}, all=true) = @LazySecured(roles={"A","B"}, logic=RoleLogic.ALL)
+    @DisplayName("@Secured with all=true requires all specified roles")
+    void securedWithAllRoleLogic() throws NoSuchMethodException {
+        // @Secured(value={"A", "B"}, all=true) requires all specified roles
         class TestController {
 
             @Secured(value = { "VERIFIED", "PREMIUM" }, all = true)

@@ -85,7 +85,7 @@ public @interface EnableLazySecurity {
 **Mecanismo**: Implementa `ImportAware` para ler os atributos da anotação em tempo de execução e mesclar com `application.yml`.
 
 #### `@Secured`
-Anotação unificada para proteção de endpoints. Substitui `@LazySecured`, `@Authenticated` e `@Admin` (deprecated).
+Anotação unificada para proteção de endpoints.
 
 ```java
 @Target({ElementType.METHOD, ElementType.TYPE})
@@ -108,15 +108,7 @@ public @interface Secured {
 @Secured(value = {"A", "B"}, all = true)  // Todas as roles necessárias
 ```
 
-#### `@LazySecured`, `@Admin`, `@Authenticated` (Deprecated)
-Estas anotações foram **deprecadas** em favor de `@Secured`:
 
-```java
-// Antes (deprecated)          // Depois (recomendado)
-@Authenticated            →    @Secured
-@Admin                    →    @Secured("ADMIN")
-@LazySecured(roles="X")   →    @Secured("X")
-```
 
 #### `@Owner`
 Verifica se o usuário é dono do recurso.
@@ -320,7 +312,7 @@ public class LazyJwtFilter extends OncePerRequestFilter {
 ### 5. Aspectos (`ao.sudojed.lss.aspect`)
 
 #### `LazySecurityAspect`
-Intercepta métodos anotados com `@Secured`, `@Owner`, e as annotations deprecated `@LazySecured`, `@Admin`, `@Authenticated`.
+Intercepta métodos anotados com `@Secured` e `@Owner`.
 
 ```java
 @Aspect
@@ -907,10 +899,8 @@ ao.sudojed.lss/
 ├── annotation/           # Anotações públicas
 │   ├── EnableLazySecurity.java
 │   ├── JwtConfig.java
-│   ├── LazySecured.java
+│   ├── Secured.java
 │   ├── Public.java
-│   ├── Admin.java
-│   ├── Authenticated.java
 │   ├── Owner.java
 │   ├── Login.java
 │   ├── Register.java
@@ -1020,32 +1010,22 @@ Spring Boot: 3.4+
 ### v1.1.0-SNAPSHOT (Atual)
 
 **Breaking Changes:**
-- `@LazySecured`, `@Admin`, `@Authenticated` foram **deprecadas** em favor de `@Secured`
-- Nova annotation unificada `@Secured` substitui todas as annotations de autorização
+- Annotation unificada `@Secured` para toda lógica de autorização
 
 **Novas Funcionalidades:**
 - `@Secured` - annotation unificada para toda lógica de autorização:
-  - `@Secured` = qualquer usuário autenticado (substitui `@Authenticated`)
-  - `@Secured("ADMIN")` = requer role ADMIN (substitui `@Admin`)
+  - `@Secured` = qualquer usuário autenticado
+  - `@Secured("ADMIN")` = requer role ADMIN
   - `@Secured({"A", "B"})` = requer qualquer uma das roles (OR logic)
   - `@Secured(value = {"A", "B"}, all = true)` = requer todas as roles (AND logic)
   - `@Secured(permissions = "x:write")` = requer permissão específica
   - `@Secured(condition = "#id == principal.id")` = expressão SpEL
-
-**Migração:**
-```java
-// Antes (deprecated)          // Depois (recomendado)
-@Authenticated            →    @Secured
-@Admin                    →    @Secured("ADMIN")
-@LazySecured(roles="X")   →    @Secured("X")
-@LazySecured(roles={"A","B"}, logic=RoleLogic.ANY)  →  @Secured({"A","B"})
-@LazySecured(roles={"A","B"}, logic=RoleLogic.ALL)  →  @Secured(value={"A","B"}, all=true)
 ```
 
 ### v1.0.0-SNAPSHOT
 
 **Funcionalidades:**
-- Anotações declarativas: `@LazySecured`, `@Admin`, `@Authenticated`, `@Owner`, `@Public`
+- Anotações declarativas: `@Secured`, `@Owner`, `@Public`
 - Anotações de autenticação: `@Login`, `@Register`, `@RefreshToken`
 - JWT com access + refresh tokens (HS384)
 - Facades: `Auth` e `Guard` para acesso imperativo

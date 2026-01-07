@@ -136,15 +136,14 @@ public String health() { ... }
 
 ### `@Secured`
 Unified security annotation for authentication and authorization.
-Replaces the deprecated `@Authenticated`, `@Admin`, and `@LazySecured` annotations.
 
 ```java
-// Any authenticated user (replaces @Authenticated)
+// Any authenticated user
 @Secured
 @GetMapping("/me")
 public User getCurrentUser(Principal principal) { ... }
 
-// Single role required (replaces @Admin for ADMIN role)
+// Single role required
 @Secured("ADMIN")
 @DeleteMapping("/users/{id}")
 public void deleteUser(@PathVariable Long id) { ... }

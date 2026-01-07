@@ -1,10 +1,27 @@
 package ao.sudojed.lss.config;
 
+import ao.sudojed.lss.annotation.EnableLazySecurity;
+import ao.sudojed.lss.aspect.AuditAspect;
+import ao.sudojed.lss.aspect.AuthEndpointAspect;
+import ao.sudojed.lss.aspect.CachedAspect;
+import ao.sudojed.lss.aspect.LazySecurityAspect;
+import ao.sudojed.lss.aspect.RateLimitAspect;
+import ao.sudojed.lss.core.LazySecurityProperties;
+import ao.sudojed.lss.exception.LazySecurityControllerAdvice;
+import ao.sudojed.lss.exception.LazySecurityExceptionHandler;
+import ao.sudojed.lss.facade.Auth;
+import ao.sudojed.lss.filter.LazyJwtFilter;
+import ao.sudojed.lss.filter.RateLimitManager;
+import ao.sudojed.lss.jwt.DefaultJwtProvider;
+import ao.sudojed.lss.jwt.InMemoryTokenBlacklist;
+import ao.sudojed.lss.jwt.JwtProvider;
+import ao.sudojed.lss.jwt.JwtService;
+import ao.sudojed.lss.jwt.TokenBlacklist;
+import ao.sudojed.lss.resolver.LazyUserArgumentResolver;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,20 +46,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import ao.sudojed.lss.annotation.EnableLazySecurity;
-import ao.sudojed.lss.aspect.AuthEndpointAspect;
-import ao.sudojed.lss.aspect.LazySecurityAspect;
-import ao.sudojed.lss.aspect.RateLimitAspect;
-import ao.sudojed.lss.core.LazySecurityProperties;
-import ao.sudojed.lss.exception.LazySecurityControllerAdvice;
-import ao.sudojed.lss.exception.LazySecurityExceptionHandler;
-import ao.sudojed.lss.filter.LazyJwtFilter;
-import ao.sudojed.lss.filter.RateLimitManager;
-import ao.sudojed.lss.jwt.DefaultJwtProvider;
-import ao.sudojed.lss.jwt.JwtProvider;
-import ao.sudojed.lss.jwt.JwtService;
-import ao.sudojed.lss.resolver.LazyUserArgumentResolver;
-
 /**
  * LazySpringSecurity auto-configuration.
  * Configures Spring Security transparently under the hood.
@@ -53,9 +56,13 @@ import ao.sudojed.lss.resolver.LazyUserArgumentResolver;
 @EnableWebSecurity
 @EnableMethodSecurity
 @EnableConfigurationProperties(LazySecurityProperties.class)
-public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigurer {
+public class LazySecurityAutoConfiguration
+    implements ImportAware, WebMvcConfigurer
+{
 
-    private static final Logger log = LoggerFactory.getLogger(LazySecurityAutoConfiguration.class);
+    private static final Logger log = LoggerFactory.getLogger(
+        LazySecurityAutoConfiguration.class
+    );
 
     private AnnotationAttributes enableLazySecurityAttributes;
 
@@ -67,11 +74,15 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
 
     @Override
     public void setImportMetadata(AnnotationMetadata importMetadata) {
-        Map<String, Object> annotationAttributes = importMetadata.getAnnotationAttributes(
-                EnableLazySecurity.class.getName());
-        
+        Map<String, Object> annotationAttributes =
+            importMetadata.getAnnotationAttributes(
+                EnableLazySecurity.class.getName()
+            );
+
         if (annotationAttributes != null) {
-            this.enableLazySecurityAttributes = AnnotationAttributes.fromMap(annotationAttributes);
+            this.enableLazySecurityAttributes = AnnotationAttributes.fromMap(
+                annotationAttributes
+            );
             mergeAnnotationWithProperties();
         }
     }
@@ -86,7 +97,8 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
         }
 
         // Public paths
-        String[] annotationPublicPaths = enableLazySecurityAttributes.getStringArray("publicPaths");
+        String[] annotationPublicPaths =
+            enableLazySecurityAttributes.getStringArray("publicPaths");
         if (annotationPublicPaths.length > 0) {
             List<String> merged = new ArrayList<>(properties.getPublicPaths());
             merged.addAll(Arrays.asList(annotationPublicPaths));
@@ -94,29 +106,40 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
         }
 
         // Default role
-        String defaultRole = enableLazySecurityAttributes.getString("defaultRole");
+        String defaultRole = enableLazySecurityAttributes.getString(
+            "defaultRole"
+        );
         if (!defaultRole.isEmpty() && !"USER".equals(defaultRole)) {
             properties.setDefaultRole(defaultRole);
         }
 
         // CSRF
-        properties.setCsrfEnabled(enableLazySecurityAttributes.getBoolean("csrfEnabled"));
+        properties.setCsrfEnabled(
+            enableLazySecurityAttributes.getBoolean("csrfEnabled")
+        );
 
         // CORS
-        properties.getCors().setEnabled(enableLazySecurityAttributes.getBoolean("corsEnabled"));
-        
-        String[] corsOrigins = enableLazySecurityAttributes.getStringArray("corsOrigins");
+        properties
+            .getCors()
+            .setEnabled(enableLazySecurityAttributes.getBoolean("corsEnabled"));
+
+        String[] corsOrigins = enableLazySecurityAttributes.getStringArray(
+            "corsOrigins"
+        );
         if (corsOrigins.length > 0) {
             properties.getCors().setOrigins(Arrays.asList(corsOrigins));
         }
-        
-        String[] corsMethods = enableLazySecurityAttributes.getStringArray("corsMethods");
+
+        String[] corsMethods = enableLazySecurityAttributes.getStringArray(
+            "corsMethods"
+        );
         if (corsMethods.length > 0) {
             properties.getCors().setMethods(Arrays.asList(corsMethods));
         }
 
         // JWT Config
-        AnnotationAttributes jwtAttributes = enableLazySecurityAttributes.getAnnotation("jwt");
+        AnnotationAttributes jwtAttributes =
+            enableLazySecurityAttributes.getAnnotation("jwt");
         if (jwtAttributes != null) {
             String secret = jwtAttributes.getString("secret");
             if (!secret.isEmpty()) {
@@ -130,7 +153,9 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
                 properties.getJwt().setExpiration(expiration);
             }
 
-            long refreshExpiration = jwtAttributes.getNumber("refreshExpiration");
+            long refreshExpiration = jwtAttributes.getNumber(
+                "refreshExpiration"
+            );
             if (refreshExpiration > 0) {
                 properties.getJwt().setRefreshExpiration(refreshExpiration);
             }
@@ -214,21 +239,44 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
     }
 
     @Bean
+    public AuditAspect auditAspect() {
+        return new AuditAspect();
+    }
+
+    @Bean
+    public CachedAspect cachedAspect() {
+        return new CachedAspect();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TokenBlacklist tokenBlacklist() {
+        InMemoryTokenBlacklist blacklist = new InMemoryTokenBlacklist();
+        // Register with Auth facade for easy access
+        Auth.setTokenBlacklist(blacklist);
+        return blacklist;
+    }
+
+    @Bean
     public LazyUserArgumentResolver lazyUserArgumentResolver() {
         return new LazyUserArgumentResolver();
     }
 
     @Override
-    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+    public void addArgumentResolvers(
+        List<HandlerMethodArgumentResolver> resolvers
+    ) {
         resolvers.add(lazyUserArgumentResolver());
     }
 
     // ==================== Security Filter Chain ====================
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, LazyJwtFilter jwtFilter,
-                                                   LazySecurityExceptionHandler exceptionHandler) throws Exception {
-        
+    public SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        LazyJwtFilter jwtFilter,
+        LazySecurityExceptionHandler exceptionHandler
+    ) throws Exception {
         // CSRF
         if (!properties.isCsrfEnabled()) {
             http.csrf(AbstractHttpConfigurer::disable);
@@ -236,14 +284,17 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
 
         // CORS
         if (properties.getCors().isEnabled()) {
-            http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
+            http.cors(cors ->
+                cors.configurationSource(corsConfigurationSource())
+            );
         } else {
             http.cors(AbstractHttpConfigurer::disable);
         }
 
         // Session stateless (JWT)
-        http.sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.sessionManagement(session ->
+            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        );
 
         // Authorization
         http.authorizeHttpRequests(auth -> {
@@ -256,15 +307,20 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
         });
 
         // Exception handling
-        http.exceptionHandling(ex -> ex
+        http.exceptionHandling(ex ->
+            ex
                 .authenticationEntryPoint(exceptionHandler)
-                .accessDeniedHandler(exceptionHandler));
+                .accessDeniedHandler(exceptionHandler)
+        );
 
         // JWT Filter
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(
+            jwtFilter,
+            UsernamePasswordAuthenticationFilter.class
+        );
 
         log.info("LazySpringSecurity initialized successfully!");
-        
+
         return http.build();
     }
 
@@ -274,10 +330,13 @@ public class LazySecurityAutoConfiguration implements ImportAware, WebMvcConfigu
         configuration.setAllowedOrigins(properties.getCors().getOrigins());
         configuration.setAllowedMethods(properties.getCors().getMethods());
         configuration.setAllowedHeaders(properties.getCors().getHeaders());
-        configuration.setAllowCredentials(properties.getCors().isAllowCredentials());
+        configuration.setAllowCredentials(
+            properties.getCors().isAllowCredentials()
+        );
         configuration.setMaxAge(properties.getCors().getMaxAge());
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }

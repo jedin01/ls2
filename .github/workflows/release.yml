@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Cache Maven packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+    - name: Extract version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Set version in pom.xml
+      run: ./mvnw versions:set -DnewVersion=${{ steps.version.outputs.VERSION }} -B
+
+    - name: Build with Maven
+      run: ./mvnw clean compile -B
+
+    - name: Run tests
+      run: ./mvnw test -B
+
+    - name: Package JAR
+      run: ./mvnw package -DskipTests -B
+
+    - name: Generate Javadoc
+      run: ./mvnw javadoc:jar -B || true
+      continue-on-error: true
+
+    - name: Generate Sources JAR
+      run: ./mvnw source:jar -B
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: ${{ contains(github.ref_name, '-') }}
+        generate_release_notes: true
+        files: |
+          target/*.jar
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Uncomment when ready to publish to Maven Central
+  # publish-maven-central:
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
+  #
+  #   - name: Set up JDK 21
+  #     uses: actions/setup-java@v4
+  #     with:
+  #       java-version: '21'
+  #       distribution: 'temurin'
+  #       cache: 'maven'
+  #       server-id: ossrh
+  #       server-username: MAVEN_USERNAME
+  #       server-password: MAVEN_PASSWORD
+  #       gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+  #       gpg-passphrase: GPG_PASSPHRASE
+  #
+  #   - name: Extract version from tag
+  #     id: version
+  #     run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+  #
+  #   - name: Set version in pom.xml
+  #     run: ./mvnw versions:set -DnewVersion=${{ steps.version.outputs.VERSION }} -B
+  #
+  #   - name: Publish to Maven Central
+  #     run: ./mvnw deploy -P release -DskipTests -B
+  #     env:
+  #       MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+  #       MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+  #       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
