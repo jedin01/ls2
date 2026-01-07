@@ -4,10 +4,9 @@ import ao.sudojed.lss.annotation.*;
 import ao.sudojed.lss.core.LazyUser;
 import ao.sudojed.lss.jwt.JwtService;
 import ao.sudojed.lss.jwt.TokenPair;
+import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.*;
 
 /**
  * Test controller to demonstrate LSS features.
@@ -29,15 +28,17 @@ public class TestController {
 
     @Public
     @PostMapping("/public/login")
-    public Map<String, Object> login(@RequestBody Map<String, String> credentials) {
+    public Map<String, Object> login(
+        @RequestBody Map<String, String> credentials
+    ) {
         // Simulates credential validation
         String username = credentials.get("username");
 
         LazyUser user = LazyUser.builder()
-                .id("user-" + UUID.randomUUID().toString().substring(0, 8))
-                .username(username)
-                .roles("USER")
-                .build();
+            .id("user-" + UUID.randomUUID().toString().substring(0, 8))
+            .username(username)
+            .roles("USER")
+            .build();
 
         TokenPair tokens = jwtService.createTokens(user);
         return tokens.toMap();
@@ -45,29 +46,37 @@ public class TestController {
 
     // ========== Protected Endpoints ==========
 
-    @LazySecured
+    @Secured
     @GetMapping("/profile")
     public Map<String, Object> profile(LazyUser user) {
         return Map.of(
-                "id", user.getId(),
-                "username", user.getUsername(),
-                "roles", user.getRoles()
+            "id",
+            user.getId(),
+            "username",
+            user.getUsername(),
+            "roles",
+            user.getRoles()
         );
     }
 
-    @LazySecured
+    @Secured
     @GetMapping("/me")
     public Map<String, Object> me(LazyUser user) {
         return Map.of(
-                "userId", user.getId(),
-                "username", user.getUsername(),
-                "roles", user.getRoles(),
-                "isAdmin", user.isAdmin(),
-                "isAuthenticated", user.isAuthenticated()
+            "userId",
+            user.getId(),
+            "username",
+            user.getUsername(),
+            "roles",
+            user.getRoles(),
+            "isAdmin",
+            user.isAdmin(),
+            "isAuthenticated",
+            user.isAuthenticated()
         );
     }
 
-    @LazySecured(roles = {"USER", "MANAGER"})
+    @Secured({ "USER", "MANAGER" })
     @GetMapping("/dashboard")
     public Map<String, String> dashboard() {
         return Map.of("message", "Welcome to dashboard");
@@ -75,25 +84,27 @@ public class TestController {
 
     // ========== Admin Endpoints ==========
 
-    @Admin
+    @Secured("ADMIN")
     @GetMapping("/admin/users")
     public List<Map<String, String>> listUsers() {
         return List.of(
-                Map.of("id", "1", "name", "John"),
-                Map.of("id", "2", "name", "Jane"),
-                Map.of("id", "3", "name", "Admin")
+            Map.of("id", "1", "name", "John"),
+            Map.of("id", "2", "name", "Jane"),
+            Map.of("id", "3", "name", "Admin")
         );
     }
 
     // ========== Endpoints com @Owner ==========
 
-    @LazySecured
+    @Secured
     @Owner(field = "userId", adminBypass = true)
     @GetMapping("/users/{userId}/orders")
-    public List<Map<String, Object>> getUserOrders(@PathVariable String userId) {
+    public List<Map<String, Object>> getUserOrders(
+        @PathVariable String userId
+    ) {
         return List.of(
-                Map.of("orderId", "ORD-001", "userId", userId, "total", 99.99),
-                Map.of("orderId", "ORD-002", "userId", userId, "total", 149.99)
+            Map.of("orderId", "ORD-001", "userId", userId, "total", 99.99),
+            Map.of("orderId", "ORD-002", "userId", userId, "total", 149.99)
         );
     }
 }
