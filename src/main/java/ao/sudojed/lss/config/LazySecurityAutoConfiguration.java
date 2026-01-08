@@ -25,7 +25,9 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -53,12 +55,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * @author Sudojed Team
  */
 @Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
 @EnableConfigurationProperties(LazySecurityProperties.class)
-public class LazySecurityAutoConfiguration
-    implements ImportAware, WebMvcConfigurer
-{
+public class LazySecurityAutoConfiguration implements ImportAware {
 
     private static final Logger log = LoggerFactory.getLogger(
         LazySecurityAutoConfiguration.class
@@ -262,82 +260,109 @@ public class LazySecurityAutoConfiguration
         return new LazyUserArgumentResolver();
     }
 
-    @Override
-    public void addArgumentResolvers(
-        List<HandlerMethodArgumentResolver> resolvers
-    ) {
-        resolvers.add(lazyUserArgumentResolver());
+    // ==================== Web Configuration ====================
+
+    @Configuration
+    @ConditionalOnWebApplication(
+        type = ConditionalOnWebApplication.Type.SERVLET
+    )
+    @ConditionalOnClass(
+        name = "org.springframework.web.servlet.DispatcherServlet"
+    )
+    static class WebMvcConfiguration implements WebMvcConfigurer {
+
+        @Override
+        public void addArgumentResolvers(
+            List<HandlerMethodArgumentResolver> resolvers
+        ) {
+            resolvers.add(new LazyUserArgumentResolver());
+        }
     }
 
-    // ==================== Security Filter Chain ====================
+    // ==================== Security Configuration ====================
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(
-        HttpSecurity http,
-        LazyJwtFilter jwtFilter,
-        LazySecurityExceptionHandler exceptionHandler
-    ) throws Exception {
-        // CSRF
-        if (!properties.isCsrfEnabled()) {
-            http.csrf(AbstractHttpConfigurer::disable);
-        }
+    @Configuration
+    @ConditionalOnWebApplication(
+        type = ConditionalOnWebApplication.Type.SERVLET
+    )
+    @ConditionalOnClass(
+        name = "org.springframework.security.web.SecurityFilterChain"
+    )
+    @EnableWebSecurity
+    @EnableMethodSecurity
+    static class WebSecurityConfiguration {
 
-        // CORS
-        if (properties.getCors().isEnabled()) {
-            http.cors(cors ->
-                cors.configurationSource(corsConfigurationSource())
-            );
-        } else {
-            http.cors(AbstractHttpConfigurer::disable);
-        }
-
-        // Session stateless (JWT)
-        http.sessionManagement(session ->
-            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        );
-
-        // Authorization
-        http.authorizeHttpRequests(auth -> {
-            // Public paths
-            for (String path : properties.getPublicPaths()) {
-                auth.requestMatchers(path).permitAll();
+        @Bean
+        public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            LazyJwtFilter jwtFilter,
+            LazySecurityExceptionHandler exceptionHandler,
+            LazySecurityProperties properties
+        ) throws Exception {
+            // CSRF
+            if (!properties.isCsrfEnabled()) {
+                http.csrf(AbstractHttpConfigurer::disable);
             }
-            // Other requests require authentication
-            auth.anyRequest().authenticated();
-        });
 
-        // Exception handling
-        http.exceptionHandling(ex ->
-            ex
-                .authenticationEntryPoint(exceptionHandler)
-                .accessDeniedHandler(exceptionHandler)
-        );
+            // CORS
+            if (properties.getCors().isEnabled()) {
+                http.cors(cors ->
+                    cors.configurationSource(
+                        corsConfigurationSource(properties)
+                    )
+                );
+            } else {
+                http.cors(AbstractHttpConfigurer::disable);
+            }
 
-        // JWT Filter
-        http.addFilterBefore(
-            jwtFilter,
-            UsernamePasswordAuthenticationFilter.class
-        );
+            // Session stateless (JWT)
+            http.sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            );
 
-        log.info("LazySpringSecurity initialized successfully!");
+            // Authorization
+            http.authorizeHttpRequests(auth -> {
+                // Public paths
+                for (String path : properties.getPublicPaths()) {
+                    auth.requestMatchers(path).permitAll();
+                }
+                // Other requests require authentication
+                auth.anyRequest().authenticated();
+            });
 
-        return http.build();
-    }
+            // Exception handling
+            http.exceptionHandling(ex ->
+                ex
+                    .authenticationEntryPoint(exceptionHandler)
+                    .accessDeniedHandler(exceptionHandler)
+            );
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(properties.getCors().getOrigins());
-        configuration.setAllowedMethods(properties.getCors().getMethods());
-        configuration.setAllowedHeaders(properties.getCors().getHeaders());
-        configuration.setAllowCredentials(
-            properties.getCors().isAllowCredentials()
-        );
-        configuration.setMaxAge(properties.getCors().getMaxAge());
+            // JWT Filter
+            http.addFilterBefore(
+                jwtFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
 
-        UrlBasedCorsConfigurationSource source =
-            new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
+            return http.build();
+        }
+
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource(
+            LazySecurityProperties properties
+        ) {
+            CorsConfiguration configuration = new CorsConfiguration();
+            configuration.setAllowedOrigins(properties.getCors().getOrigins());
+            configuration.setAllowedMethods(properties.getCors().getMethods());
+            configuration.setAllowedHeaders(properties.getCors().getHeaders());
+            configuration.setAllowCredentials(
+                properties.getCors().isAllowCredentials()
+            );
+            configuration.setMaxAge(properties.getCors().getMaxAge());
+
+            UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+            source.registerCorsConfiguration("/**", configuration);
+            return source;
+        }
     }
 }
