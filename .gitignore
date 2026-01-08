@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+PUBLISH.md
+publish.sh
+
+docs/
+
+ANNOTATIONS_GUIDE.md

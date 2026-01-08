@@ -24,21 +24,49 @@
 
 ## Installation
 
+[![](https://jitpack.io/v/jedin01/ls2.svg)](https://jitpack.io/#jedin01/ls2)
+
+O LSS está disponível via **JitPack** - instalação simples e automática:
+
 ### Maven
 
+Adicione o repositório JitPack:
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+```
+
+Adicione a dependência:
 ```xml
 <dependency>
-    <groupId>ao.sudojed</groupId>
-    <artifactId>lazy-spring-security</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <groupId>com.github.jedin01</groupId>
+    <artifactId>ls2</artifactId>
+    <version>v1.0.0</version>
 </dependency>
 ```
 
 ### Gradle
 
-```groovy
-implementation 'ao.sudojed:lazy-spring-security:1.0.0-SNAPSHOT'
+```gradle
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation 'com.github.jedin01:ls2:v1.0.0'
+}
 ```
+
+### Versões Disponíveis
+
+- **v1.0.0**: Release inicial com suporte completo a anotações, JWT e auto-configuração
+- Para todas as versões: [![JitPack](https://jitpack.io/v/jedin01/ls2.svg)](https://jitpack.io/#jedin01/ls2)
+
+> 💡 **Por que JitPack?** Builds automáticos, sem burocracia, versionamento por Git tags, e disponível em minutos após o release!
 
 ---
 

@@ -279,90 +279,75 @@ public class LazySecurityAutoConfiguration implements ImportAware {
         }
     }
 
-    // ==================== Security Configuration ====================
+    // ==================== Security Filter Chain ====================
 
-    @Configuration
-    @ConditionalOnWebApplication(
-        type = ConditionalOnWebApplication.Type.SERVLET
-    )
-    @ConditionalOnClass(
-        name = "org.springframework.security.web.SecurityFilterChain"
-    )
-    @EnableWebSecurity
-    @EnableMethodSecurity
-    static class WebSecurityConfiguration {
-
-        @Bean
-        public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            LazyJwtFilter jwtFilter,
-            LazySecurityExceptionHandler exceptionHandler,
-            LazySecurityProperties properties
-        ) throws Exception {
-            // CSRF
-            if (!properties.isCsrfEnabled()) {
-                http.csrf(AbstractHttpConfigurer::disable);
-            }
-
-            // CORS
-            if (properties.getCors().isEnabled()) {
-                http.cors(cors ->
-                    cors.configurationSource(
-                        corsConfigurationSource(properties)
-                    )
-                );
-            } else {
-                http.cors(AbstractHttpConfigurer::disable);
-            }
-
-            // Session stateless (JWT)
-            http.sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            );
-
-            // Authorization
-            http.authorizeHttpRequests(auth -> {
-                // Public paths
-                for (String path : properties.getPublicPaths()) {
-                    auth.requestMatchers(path).permitAll();
-                }
-                // Other requests require authentication
-                auth.anyRequest().authenticated();
-            });
-
-            // Exception handling
-            http.exceptionHandling(ex ->
-                ex
-                    .authenticationEntryPoint(exceptionHandler)
-                    .accessDeniedHandler(exceptionHandler)
-            );
-
-            // JWT Filter
-            http.addFilterBefore(
-                jwtFilter,
-                UsernamePasswordAuthenticationFilter.class
-            );
-
-            return http.build();
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        LazyJwtFilter jwtFilter,
+        LazySecurityExceptionHandler exceptionHandler
+    ) throws Exception {
+        // CSRF
+        if (!properties.isCsrfEnabled()) {
+            http.csrf(AbstractHttpConfigurer::disable);
         }
 
-        @Bean
-        public CorsConfigurationSource corsConfigurationSource(
-            LazySecurityProperties properties
-        ) {
-            CorsConfiguration configuration = new CorsConfiguration();
-            configuration.setAllowedOrigins(properties.getCors().getOrigins());
-            configuration.setAllowedMethods(properties.getCors().getMethods());
-            configuration.setAllowedHeaders(properties.getCors().getHeaders());
-            configuration.setAllowCredentials(
-                properties.getCors().isAllowCredentials()
+        // CORS
+        if (properties.getCors().isEnabled()) {
+            http.cors(cors ->
+                cors.configurationSource(corsConfigurationSource())
             );
-            configuration.setMaxAge(properties.getCors().getMaxAge());
-
-            UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-            source.registerCorsConfiguration("/**", configuration);
-            return source;
+        } else {
+            http.cors(AbstractHttpConfigurer::disable);
         }
+
+        // Session stateless (JWT)
+        http.sessionManagement(session ->
+            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        );
+
+        // Authorization
+        http.authorizeHttpRequests(auth -> {
+            // Public paths
+            for (String path : properties.getPublicPaths()) {
+                auth.requestMatchers(path).permitAll();
+            }
+            // Other requests require authentication
+            auth.anyRequest().authenticated();
+        });
+
+        // Exception handling
+        http.exceptionHandling(ex ->
+            ex
+                .authenticationEntryPoint(exceptionHandler)
+                .accessDeniedHandler(exceptionHandler)
+        );
+
+        // JWT Filter
+        http.addFilterBefore(
+            jwtFilter,
+            UsernamePasswordAuthenticationFilter.class
+        );
+
+        log.info("LazySpringSecurity initialized successfully!");
+
+        return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(properties.getCors().getOrigins());
+        configuration.setAllowedMethods(properties.getCors().getMethods());
+        configuration.setAllowedHeaders(properties.getCors().getHeaders());
+        configuration.setAllowCredentials(
+            properties.getCors().isAllowCredentials()
+        );
+        configuration.setMaxAge(properties.getCors().getMaxAge());
+
+        UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

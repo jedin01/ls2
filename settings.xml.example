@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <!-- Este é um arquivo de exemplo. Copie para ~/.m2/settings.xml e configure com suas credenciais -->
+
+    <servers>
+        <!-- Configuração para Maven Central via Sonatype OSSRH -->
+        <server>
+            <id>ossrh</id>
+            <username>seu-usuario-sonatype</username>
+            <password>sua-senha-sonatype</password>
+        </server>
+    </servers>
+
+    <profiles>
+        <profile>
+            <id>release-profile</id>
+            <properties>
+                <!-- Configurações GPG para assinatura dos artefatos -->
+                <gpg.executable>gpg</gpg.executable>
+                <gpg.keyname>SEU_GPG_KEY_ID</gpg.keyname>
+                <gpg.passphrase>SUA_GPG_PASSPHRASE</gpg.passphrase>
+            </properties>
+        </profile>
+    </profiles>
+
+    <activeProfiles>
+        <activeProfile>release-profile</activeProfile>
+    </activeProfiles>
+
+</settings>

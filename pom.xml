@@ -13,9 +13,9 @@
 		<relativePath />
 	</parent>
 
-	<groupId>ao.sudojed</groupId>
+	<groupId>com.github.jedin01</groupId>
 	<artifactId>lazy-spring-security</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<packaging>jar</packaging>
 
 	<name>LazySpringSecurity</name>
@@ -23,6 +23,7 @@
 		LazySpringSecurity (LSS) - A lightweight, annotation-driven security framework
 		that abstracts Spring Security complexity into a readable, developer-friendly DSL.
 	</description>
+	<url>https://github.com/jedin01/ls2</url>
 
 	<licenses>
 		<license>
@@ -35,9 +36,18 @@
 		<developer>
 			<id>sudojed</id>
 			<name>Abner Lourenço</name>
+			<email>abner@sudojed.ao</email>
 			<organization>jedin01</organization>
+			<organizationUrl>https://github.com/abnerlourenco</organizationUrl>
 		</developer>
 	</developers>
+
+	<scm>
+		<connection>scm:git:git://github.com/jedin01/ls2.git</connection>
+		<developerConnection
+        >scm:git:ssh://github.com:jedin01/ls2.git</developerConnection>
+		<url>https://github.com/jedin01/ls2/tree/main</url>
+	</scm>
 
 	<properties>
 		<java.version>21</java.version>
