@@ -39,3 +39,5 @@ publish.sh
 docs/
 
 ANNOTATIONS_GUIDE.md
+jitpack-release.sh
+settings.*
