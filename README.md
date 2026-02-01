@@ -166,4 +166,4 @@ MIT License - Use it anywhere, build anything, no restrictions.
 
 **LazySpringSecurity: The last security library you'll ever need to learn.**
 
-*Stop configuring. Start building.*
+*Stop configuring. Start building. Another level of the CoC concept.*
