@@ -1,4 +1,4 @@
-# LazySpringSecurity Starter
+# LazySpringSecurity
 
 **Enterprise-grade Spring Security made ridiculously simple. One dependency. Zero configuration. Full control.**
 
