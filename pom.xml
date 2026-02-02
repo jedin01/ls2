@@ -22,7 +22,7 @@
 	<description>
 		LazySpringSecurity (LSS) Spring Boot Starter - A lightweight, annotation-driven security framework
 		that abstracts Spring Security complexity into a readable, developer-friendly DSL.
-		This starter includes all necessary dependencies automatically.
+		Core security features are included; web, validation, and cache dependencies are optional.
 	</description>
 	<url>https://github.com/jedin01/ls2</url>
 
@@ -59,12 +59,7 @@
 	</properties>
 
 	<dependencies>
-		<!-- Spring Boot Starters - Transitive dependencies for users -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-
+		<!-- Core Security Dependencies - REQUIRED -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
@@ -75,9 +70,18 @@
 			<artifactId>spring-boot-starter-aop</artifactId>
 		</dependency>
 
+		<!-- Web Support - OPTIONAL (only if using web features) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Validation Support - OPTIONAL (only if using @Valid) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
+			<optional>true</optional>
 		</dependency>
 
 		<!-- Spring Boot Autoconfigure -->
@@ -117,10 +121,11 @@
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Cache Support (Optional but included for @Cached annotation) -->
+		<!-- Cache Support - OPTIONAL (only if using @Cached annotation) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-cache</artifactId>
+			<optional>true</optional>
 		</dependency>
 
 		<!-- Redis Support (Optional for distributed caching) -->
@@ -170,6 +175,10 @@
 							<Implementation-Vendor>jedin01</Implementation-Vendor>
 						</manifestEntries>
 					</archive>
+					<excludes>
+						<!-- Exclude demo code from production JAR -->
+						<exclude>**/demo/**</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
 
